@@ -519,7 +519,7 @@
 
 (defn apply-control-map-from-file []
   (let [extFilter (FileNameExtensionFilter. "Bindings (*.ctl)" (into-array  ["ctl"]))
-        filechooser (doto (JFileChooser. "~")
+        filechooser (doto (JFileChooser. "./presets")
                           (.setFileFilter extFilter))
         retval (.showOpenDialog filechooser nil)]
        (if (= retval JFileChooser/APPROVE_OPTION)
@@ -530,7 +530,7 @@
 
 (defn save-control-map-to-file []
   (let [extFilter (FileNameExtensionFilter. "Bindings (*.ctl)" (into-array  ["ctl"]))
-        filechooser (doto (JFileChooser. "~")
+        filechooser (doto (JFileChooser. "./presets")
                           (.setFileFilter extFilter)
                           (.setSelectedFile (File. "Untitled.ctl")))
         retval (.showSaveDialog filechooser nil)]
@@ -539,26 +539,29 @@
                  out-obj (into {} (map (fn [[k v]] [k (:ctl v)]) @dev-chan-note-cmd->control))]
                 (->> out-obj pr-str (spit path))))))
 
+(defn load-synth-settings-from-file [path]
+  (let [patch (-> path slurp read-string)]
+    ;; reset the ui and synth to pre-file-loaded values
+    (reset!  ui-state patch)
+    (reset-synth-defaults mbsynth)
+    (doall (map (fn [[k v]] 
+                    (let [control (ctl->control k)
+                          synth-val ((:synth-fn control) v)]
+                      (ctl-ui-and-synth mbsynth synth-val (:name control) v))) patch))
+    (ctl-ui-and-synth mbsynth :gate 0.0 nil nil)))
+
 (defn apply-synth-settings-from-file []
   (let [extFilter (FileNameExtensionFilter. "Patch (*.patch)" (into-array  ["patch"]))
-        filechooser (doto (JFileChooser. "~")
+        filechooser (doto (JFileChooser. "./presets")
                           (.setFileFilter extFilter))
         retval (.showOpenDialog filechooser nil)]
        (if (= retval JFileChooser/APPROVE_OPTION)
-           (let [path (-> filechooser .getSelectedFile .getPath)
-                 patch (-> path slurp read-string)]
-                (reset!  ui-state patch)
-                (reset-synth-defaults mbsynth)
-                (doall (map (fn [[k v]] 
-                                (let [control (ctl->control k)
-                                      synth-val ((:synth-fn control) v)]
-                                  (ctl-ui-and-synth mbsynth synth-val (:name control) v))) patch))
-
-                (ctl mbsynth :gate 0.0)))))
+           (let [path (-> filechooser .getSelectedFile .getPath)]
+                (load-synth-settings-from-file path)))))
 
 (defn save-synth-settings-to-file []
   (let [extFilter (FileNameExtensionFilter. "Patch (*.patch)" (into-array  ["patch"]))
-        filechooser (doto (JFileChooser. "~")
+        filechooser (doto (JFileChooser. "./presets")
                           (.setFileFilter extFilter)
                           (.setSelectedFile (File. "Untitled.patch")))
         retval (.showSaveDialog filechooser nil)]
@@ -609,7 +612,9 @@
              (.setVisible true)))
   (smooth)
   (frame-rate 30)
-  (background 0))
+  (background 0)
+  ;; load the most bad-est preset possible!
+  (load-synth-settings-from-file "./presets/way-huge.patch"))
 
 (defn draw []
   (set-image 0 0 background-img)
