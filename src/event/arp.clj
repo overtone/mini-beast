@@ -45,6 +45,23 @@
                                    (arp-next (inc i)))))))) 1))))
 
 
+;;previously in minibeast.core:
 
-
-
+;; Arp on-off
+;;:c20 (let [new-state (alter-state
+;;              #(assoc % :arp-on (not (:arp-on %))))]
+;;          (if (:arp-on @state)
+;;              ;; Add arp handler
+;;              (on-event midi.oxygen61/event-handle
+;;                  (fn [event]
+;;                      (if-let [id (:id event)]
+;;                          (if (not (keyword? id))
+;;                              (let [val (:val event)]
+;;                                    ;; key event
+;;                                    (if (= val 0)
+;;                                        ;; Key up
+;;                                        (arp-off arp id)
+;;                                        ;; Key down
+;;                                        (arp-on arp id keydown keyup)))))) ::oxygen61-arp-handler)
+;;              ;; Remove arp handler
+;;              (remove-handler midi.oxygen61/event-handle ::oxygen61-arp-handler)))

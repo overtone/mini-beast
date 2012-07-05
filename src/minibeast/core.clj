@@ -2,7 +2,7 @@
   (:gen-class)
   (:import (javax.swing JFileChooser JMenuBar JMenu JMenuItem)
            (javax.swing.filechooser FileNameExtensionFilter)
-           (java.awt.event ActionEvent ActionListener)
+           (java.awt.event ActionEvent ActionListener KeyEvent)
            (java.io File))
   (:use [overtone.live :exclude (mouse-button mouse-x mouse-y)]
         [quil.core :exclude (abs acos asin atan atan2 ceil cos
@@ -11,16 +11,9 @@
                                  pow round scale sin state sqrt tan triangle
                                  TWO-PI)]
         [minibeast.version :only [BEAST-VERSION-STR]]
+        [clojure.set :only [difference]]
         [quil.applet]
-        [event.arp]
         [minibeast.mbsynth]))
-
-(import 'java.awt.event.KeyEvent)
-(refer 'clojure.set :only '[difference])
-(import 'event.arp.Arp)
-
-;; Create an arp with atomic semantics.
-(def arp (atom (Arp. 0 0 400 0)))
 
 ;; Create some synth instruments to be used by voices.
 (def synths (doall (map (fn [x] (mbsynth)) [1 2 3 4 5 6 7 8])))
