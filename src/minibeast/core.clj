@@ -52,6 +52,12 @@
 (defonce dragged-control            (atom nil))
 (defonce dev-chan-note-cmd->control (atom {}))
 
+;; Keep a record of the last eight key presses
+;; in a map of {:synth s, :note n}
+(def voices-max 8)
+(defonce voices (ref ()))
+
+
 (defn update-ui-state [m]
   (swap! ui-state merge m))
 
@@ -92,11 +98,6 @@
   "Given mod wheel fn, return the next fn that can be selected."
   (let [fns (cycle mod-wheel-fns)]
     (nth fns (inc (.indexOf fns f)))))
-
-;; Keep a record of the last eight key presses
-;; in a map of {:synth s, :note n}
-(def voices-max 8)
-(def voices (ref ()))
 
 (defn queue [q e]
   "Add the element e at the end of the queue q."
