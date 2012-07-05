@@ -8,7 +8,7 @@
         [quil.core :exclude (abs acos asin atan atan2 ceil cos
                                  exp line log
                                  ;;  mouse-button mouse-x mouse-y
-                                 pow round scale sin state sqrt tan triangle
+                                 pow round scale sin sqrt tan triangle
                                  TWO-PI)]
         [minibeast.version :only [BEAST-VERSION-STR]]
         [clojure.set :only [difference]]
@@ -25,7 +25,7 @@
 ;; to the operation of the state of the synth.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defrecord State [sub-osc-waveform
+(defrecord SynthState [sub-osc-waveform
                   sub-osc-amp
                   sub-osc-oct
                   lfo-waveform
@@ -33,12 +33,12 @@
                   mod-wheel-fn
                   arp-on])
 
-(def state (ref (State. :sub-osc-square 0.0 1 :lfo-sin 1.0 :cutoff false)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :cutoff false)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
   (dosync
-   (apply alter state f more)))
+   (apply alter synth-state f more)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Internal ui state
@@ -208,25 +208,13 @@
   `(let* ~(destructure bindings)
          (do-transformation ~@body)))
 
-(def background-img nil)
-(def knob-img nil)
-(def knob-background-img nil)
-(def slider-img nil)
-(def slider-background-img nil)
-(def selector-img nil)
-(def selector-background-img nil)
-(def wheel-img nil)
-(def wheel-dimple-img nil)
-(def wheel-dimple-inv-img nil)
-(def wheel-dimple-background-img nil)
-(def led-img nil)
-(def led-background-img nil)
-
 (defn draw-knob [x y amount selected? pos-indicator? start-sym end-sym
                  sym-dx sym-dy zero? caption caption-dx caption-dy]
   (let-transformation
-      [w2 (/ 50 2.0)
-       tl [(+ x w2) (+ y w2)]]
+      [w2                  (/ 50 2.0)
+       tl                  [(+ x w2) (+ y w2)]
+       knob-background-img (state :knob-background-img)
+       knob-img            (state :knob-img)]
     (apply translate tl)
     (text-size 8)
     (text-align :center)
@@ -259,7 +247,8 @@
   "x: x position
      y: y position
      amount: 0.0-127.0"
-  (do
+  (let [slider-background-img (state :slider-background-img)
+        slider-img            (state :slider-img)]
     (image slider-background-img (- x 5) (- y 77))
     (if-not (nil? caption)
       (let [cdx (or caption-dx 0)
@@ -276,18 +265,23 @@
   "x: x position
      y: y position
      pos: y position offet"
-  (image selector-background-img (+ x 1) (+ y 3))
-  (if selected?
-    (tint 255 200 128))
-  (image selector-img x (+ y pos))
-  (tint 255 255 255))
+  (let [selector-background-img (state :selector-background-img)
+        selector-img            (state :selector-img) ]
+    (image selector-background-img (+ x 1) (+ y 3))
+    (if selected?
+      (tint 255 200 128))
+    (image selector-img x (+ y pos))
+    (tint 255 255 255)))
 
 (defn draw-wheel [x y amount selected? caption caption-dx caption-dy]
   "x: x position on screen
    y: y position on screen
    amount: 0.0-127.0
    selected?: draw control in selected mode"
-  (do
+  (let [wheel-dimple-background-img (state :wheel-dimple-background-img)
+        wheel-img                   (state :wheel-img)
+        wheel-dimple-img            (state :wheel-dimple-img)
+        wheel-dimple-inv-img        (state :wheel-dimple-inv-img)]
     (if-not (nil? caption)
       (let [cdx (or caption-dx 0)
             cdy (or caption-dy 0)]
@@ -408,7 +402,7 @@
              ;; Put advanced controls here [x y synth-fn ui-fn]
              ;; LFO waveform selector
         (AdvancedControl. 478 398 :knob {:caption "Wave"} :lfo-waveform
-                          (fn [val] (let [old-waveform (:lfo-waveform @state)
+                          (fn [val] (let [old-waveform (:lfo-waveform @synth-state)
                                          new-state    (alter-state
                                                        #(assoc % :lfo-waveform
                                                                (if (= val 0)
@@ -418,13 +412,13 @@
                                                                  (lfo-waveforms (int (* (/ val 128.0) (count lfo-waveforms)))))))
                                          new-waveform (:lfo-waveform new-state)]
                                      ;; Toggle lfo waveform
-                                     [[old-waveform 0] [new-waveform (:lfo-amp @state)]]))
-                          (fn [val] (case (:lfo-waveform @state)
+                                     [[old-waveform 0] [new-waveform (:lfo-amp @synth-state)]]))
+                          (fn [val] (case (:lfo-waveform @synth-state)
                                      :lfo-sin 60 :lfo-tri 75 :lfo-saw 89 :lfo-square 100 :lfo-rand 115 :lfo-slew-rand 130)))
 
         ;; sub-octave osc waveform selector
         (AdvancedControl. 290 46 :selector {} :sub-osc-waveform
-                          (fn [val] (let [old-waveform (:sub-osc-waveform @state)
+                          (fn [val] (let [old-waveform (:sub-osc-waveform @synth-state)
                                          new-state    (alter-state
                                                        #(assoc % :sub-osc-waveform
                                                                (if (zero? val)
@@ -434,12 +428,12 @@
                                                                  (sub-osc-waveforms (int (* (/ val 128.0) (count sub-osc-waveforms)))))))
                                          new-waveform (:sub-osc-waveform new-state)]
                                      ;; Toggle sub-osc waveform
-                                     [[old-waveform 0] [new-waveform (:sub-osc-amp @state)]]))
-                          (fn [val] (case (:sub-osc-waveform @state)
+                                     [[old-waveform 0] [new-waveform (:sub-osc-amp @synth-state)]]))
+                          (fn [val] (case (:sub-osc-waveform @synth-state)
                                      :sub-osc-square 0 :sub-osc-sin 16 -10)))
         ;; sub-osc octave selector
         (AdvancedControl. 290 106 :selector {} :sub-osc-oct
-                          (fn [val] (let [old-oct   (:sub-osc-oct @state)
+                          (fn [val] (let [old-oct   (:sub-osc-oct @synth-state)
                                          new-state (alter-state
                                                     #(assoc % :sub-osc-oct
                                                             (if (zero? val)
@@ -451,31 +445,31 @@
                                                               ([1 2] (int (* (/ val 128.0) (count [1 2])))))))
                                          new-oct   (:sub-osc-oct new-state)]
                                      ;; Toggle sub-osc octave
-                                     [[:sub-osc-coeff (case (:sub-osc-oct @state)
+                                     [[:sub-osc-coeff (case (:sub-osc-oct @synth-state)
                                                         1 0.5
                                                         2 0.25)]]))
-                          (fn [val] (case (:sub-osc-oct @state)
+                          (fn [val] (case (:sub-osc-oct @synth-state)
                                      1 0 2 16)))
 
         ;; Sub-octave amount
         (AdvancedControl. 280 265 :slider {} :sub-osc-amp
                           (fn [val] (let [new-state (alter-state #(assoc % :sub-osc-amp (/ val 127.0)))]
-                                     [[(:sub-osc-waveform @state) (/ val 127.0)]]))
-                          (fn [val] (* 127.0 (:sub-osc-amp @state))))
+                                     [[(:sub-osc-waveform @synth-state) (/ val 127.0)]]))
+                          (fn [val] (* 127.0 (:sub-osc-amp @synth-state))))
 
         ;; Mod wheel function
         (AdvancedControl. 283 335 :selector {} :mod-wheel-fn
-                          (fn [val] (let [old-fn    (:mod-wheel-fn @state)
+                          (fn [val] (let [old-fn    (:mod-wheel-fn @synth-state)
                                          new-state (alter-state
                                                     #(assoc % :mod-wheel-fn
                                                             (if (zero? val)
                                                               ;; button press; switch to next fn
                                                               (next-mod-wheel-fn (:mod-wheel-fn %))
                                                               ;; knob or slider; calc fn
-                                                              (mod-wheel-fns (int (* (/ val 128.0) (count mod-wheel-fns)))))))
+@                                                              (mod-wheel-fns (int (* (/ val 128.0) (count mod-wheel-fns)))))))
                                          new-fn    (:mod-wheel-fn new-state)]
                                      []))
-                          (fn [val] (case  (:mod-wheel-fn @state)
+                          (fn [val] (case  (:mod-wheel-fn @synth-state)
                                      :cutoff 0 :vibrato 10 :lfo-amount 20)))
 
         ;; Ptch bend wheel
@@ -485,12 +479,12 @@
                           (fn [val] val))
         ;; Mod-wheel
         (AdvancedControl. 170 165 :wheel {:caption "Modulation"} :mod-wheel
-                          (fn [val] (case (:mod-wheel-fn @state)
+                          (fn [val] (case (:mod-wheel-fn @synth-state)
                                      :cutoff [[:cutoff (* (- val 10) 100.0)]]
                                      :vibrato [[:vibrato-amp (/ val 127.0)]]
                                      :lfo-amount (do
                                                    (alter-state #(assoc % :lfo-amp (/ val 127.0)))
-                                                   [[(:lfo-waveform @state) (/ val 127.0)]])))
+                                                   [[(:lfo-waveform @synth-state) (/ val 127.0)]])))
                           (fn [val] val))
 
 
@@ -559,67 +553,51 @@
     "Open Patch"    (apply-synth-settings-from-file)))
 
 (defn setup []
-  (ctl (map :id synths) :gate 0)
-  (def background-img (load-image "background.png"))
-  (def knob-img (load-image "knob.png"))
-  (def knob-background-img (load-image "knob-background.png"))
-  (def slider-img (load-image "slider.png"))
-  (def slider-background-img (load-image "slider-background.png"))
-  (def selector-img (load-image "selector.png"))
-  (def selector-background-img (load-image "selector-background.png"))
-  (def wheel-img (load-image "wheel.png"))
-  (def wheel-dimple-img (load-image "wheel-dimple.png"))
-  (def wheel-dimple-inv-img (load-image "wheel-dimple-inv.png"))
-  (def wheel-dimple-background-img (load-image "wheel-dimple-background.png"))
-  (def led-img (load-image "led.png"))
-  (def led-background-img (load-image "led-background.png"))
-  (let [listener (proxy [ActionListener] []
-                   (actionPerformed [event]
-                     (menuitem-selected event)))
-        mb       (doto (JMenuBar.)
-                   (.add (doto (JMenu. "File")
-                           (.add (doto (JMenuItem. "Open Bindings")
-                                   (.addActionListener listener)))
-                           (.add (doto (JMenuItem. "Save Bindings")
-                                   (.addActionListener listener)))
-                           (.add (doto (JMenuItem. "Open Patch")
-                                   (.addActionListener listener)))
-                           (.add (doto (JMenuItem. "Save Patch")
-                                   (.addActionListener listener))))))
-        ;; sleep for a little bit. If we don't then the frame may not be available.
-        _        (Thread/sleep 500)
-        frame    (-> (current-applet) meta :target-obj deref)]
-    (doto frame
-      (.setJMenuBar mb)
-      (.setVisible true)))
   (smooth)
   (frame-rate 30)
   (background 0)
   ;; load the most bad-est preset possible!
-  (load-synth-settings-from-file "./presets/way-huge.patch"))
+  (load-synth-settings-from-file "./presets/way-huge.patch")
+
+  (ctl (map :id synths) :gate 0)
+  (set-state! :background-img              (load-image "background.png")
+              :knob-img                    (load-image "knob.png")
+              :knob-background-img         (load-image "knob-background.png")
+              :slider-img                  (load-image "slider.png")
+              :slider-background-img       (load-image "slider-background.png")
+              :selector-img                (load-image "selector.png")
+              :selector-background-img     (load-image "selector-background.png")
+              :wheel-img                   (load-image "wheel.png")
+              :wheel-dimple-img            (load-image "wheel-dimple.png")
+              :wheel-dimple-inv-img        (load-image "wheel-dimple-inv.png")
+              :wheel-dimple-background-img (load-image "wheel-dimple-background.png")
+              :led-img                     (load-image "led.png")
+              :led-background-img          (load-image "led-background.png")))
 
 (defn draw []
-  (set-image 0 0 background-img)
-  (doall (map draw-control controls))
-  (let [lfo         @(-> synths (nth 0) :taps :lfo)
-        lfo-tint    (color 255 0 0 (* 255 lfo))
-        amp         (apply max (map (fn [s] @(-> s :taps :amp-adsr)) synths))
-        amp-tint    (color 0 255 0 (* 255 amp))
-        fil         (apply max (map (fn [s] @(-> s :taps :filter-adsr)) synths))
-        filter-tint (color 0 255 0 (* 255 fil))
-        off-tint    (color 65 65 65 255)
-        draw-led    (fn [x y t]
-                      (tint off-tint)
-                      (image led-background-img (+ 10 x) (+ 10 y))
-                      (tint t)
-                      (image led-img x y))]
+  (let [background-img     (state :background-img)
+        led-background-img (state :led-background-img)
+        led-img            (state :led-img)]
+    (set-image 0 0 background-img)
+    (doall (map draw-control controls))
+    (let [lfo         @(-> synths (nth 0) :taps :lfo)
+          lfo-tint    (color 255 0 0 (* 255 lfo))
+          amp         (apply max (map (fn [s] @(-> s :taps :amp-adsr)) synths))
+          amp-tint    (color 0 255 0 (* 255 amp))
+          fil         (apply max (map (fn [s] @(-> s :taps :filter-adsr)) synths))
+          filter-tint (color 0 255 0 (* 255 fil))
+          off-tint    (color 65 65 65 255)
+          draw-led    (fn [x y t]
+                        (tint off-tint)
+                        (image led-background-img (+ 10 x) (+ 10 y))
+                        (tint t)
+                        (image led-img x y))]
 
-    (doall (map (partial apply draw-led)
-                [[590 388 lfo-tint]
-                 [705 170 filter-tint]
-                 [910 170 amp-tint]]))
-    (tint (color 255 255 255 255))))
-
+      (doall (map (partial apply draw-led)
+                  [[590 388 lfo-tint]
+                   [705 170 filter-tint]
+                   [910 170 amp-tint]]))
+      (tint (color 255 255 255 255)))))
 
 (defn closest-control
   "return the closest control to [x y]"
@@ -661,18 +639,6 @@
 (defn key-typed []
   (println (key-code)))
 
-(defsketch synth-sketch
-  :title "MiniBeast"
-  :setup setup
-  :draw draw
-  :mouse-clicked mouse-clicked
-  :mouse-dragged mouse-dragged
-  :mouse-released mouse-released
-  :key-typed key-typed
-  :decor true
-  :size [1036 850])
-
-
 (on-event [:midi :note-on]
           (fn [{note :note velocity :velocity}]
             (println "keydown " note)
@@ -695,4 +661,38 @@
 
 
 (defn -main [& args]
+  (println "starting...")
+  (let [listener (proxy [ActionListener] []
+                   (actionPerformed [event]
+                     (menuitem-selected event)))
+        mb       (doto (JMenuBar.)
+                   (.add (doto (JMenu. "File")
+                           (.add (doto (JMenuItem. "Open Bindings")
+                                   (.addActionListener listener)))
+                           (.add (doto (JMenuItem. "Save Bindings")
+                                   (.addActionListener listener)))
+                           (.add (doto (JMenuItem. "Open Patch")
+                                   (.addActionListener listener)))
+                           (.add (doto (JMenuItem. "Save Patch")
+                                   (.addActionListener listener))))))
+        sk       (sketch
+                  :title "MiniBeast"
+                  :setup setup
+                  :draw draw
+                  :mouse-clicked mouse-clicked
+                  :mouse-dragged mouse-dragged
+                  :mouse-released mouse-released
+                  :key-typed key-typed
+                  :decor true
+                  :size [1036 850])
+
+        _        (Thread/sleep 500)
+        frame    (-> sk meta :target-obj deref)]
+    (doto frame
+      (.setJMenuBar mb)
+      (.setVisible true)))
+
+
   (println "Started"))
+
+(-main)
