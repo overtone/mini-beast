@@ -10,6 +10,7 @@
                                ;;  mouse-button mouse-x mouse-y
                                pow round scale sin state sqrt tan triangle
                                TWO-PI)]
+          [minibeast.version :only [BEAST-VERSION-STR]]
           [quil.applet]
           [event.arp]
           [minibeast.mbsynth]
