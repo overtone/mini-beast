@@ -6,3 +6,5 @@ pom.xml
 /data/*xcf
 /data/*jpg
 /data/*svg
+target
+.DS_store
