@@ -58,6 +58,8 @@
 
 (def selected-control (atom nil))
 
+(def dragged-control (atom nil))
+
 (def dev-chan-note-cmd->control (atom {}))
 
 (defn update-ui-state [m]
@@ -542,7 +544,7 @@
 (defn load-synth-settings-from-file [path]
   (let [patch (-> path slurp read-string)]
     ;; reset the ui and synth to pre-file-loaded values
-    (reset!  ui-state patch)
+    (reset! ui-state {})
     (reset-synth-defaults mbsynth)
     (doall (map (fn [[k v]] 
                     (let [control (ctl->control k)
@@ -638,24 +640,54 @@
                [910 170 amp-tint]]))
         (tint (color 255 255 255 255))))
 
+
+(defn closest-control
+  "return the closest control to [x y]"
+  [x y]
+  ;; sort controls by distance ascending and choose the first.
+  (first (sort-by #(+ (Math/pow (- x (+ (:x %) 25)) 2)
+                      (Math/pow (- y (+ (:y %) 25)) 2)) controls)))
 (defn mouse-clicked []
+  ;; toggle selected-control on mouse click
   (if (nil? @selected-control)
       (let [x (mouse-x)
             y (mouse-y)
-            closest-control (first (sort-by #(+ (Math/pow (- x (+ (:x %) 25)) 2) (Math/pow (- y (+ (:y %) 25)) 2)) controls))]
-           (println "click at [" x ", " y "]")
-           (reset! selected-control closest-control))
+            c (closest-control x y) ]
+        (println "click at [" x ", " y "]")
+        (reset! selected-control c))
       (reset! selected-control nil)))
+
+(defn mouse-dragged []
+  "For dragging controls around using mouse"
+  (let [x (mouse-x)
+        y (mouse-y)
+        c (if (nil? @dragged-control)
+              (reset! dragged-control (closest-control x y))
+              @dragged-control)
+        dy (- y (pmouse-y))
+        control-name (:name c)
+        last-val (or (get @ui-state control-name) 0)
+        ;; constrain new-val to 0-127.0
+        new-val (max 0.0 (min 127.0 (+ last-val dy)))
+        synth-ctls ((:synth-fn c) new-val)
+        ui-val ((:ui-fn c) new-val)]
+    (println "last-val " last-val "new-val " new-val "ctls " synth-ctls " ui-val " ui-val)
+    (ctl-ui-and-synth mbsynth synth-ctls control-name ui-val)))
+
+;; stop dragging
+(defn mouse-released []
+  (reset! dragged-control nil))
 
 (defn key-typed []
   (println (key-code)))
-
 
 (defsketch synth-sketch
   :title "MiniBeast"
   :setup setup 
   :draw draw
   :mouse-clicked mouse-clicked
+  :mouse-dragged mouse-dragged
+  :mouse-released mouse-released
   :key-typed key-typed
   :decor true
   :size [1036 850])
