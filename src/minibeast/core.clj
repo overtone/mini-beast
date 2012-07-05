@@ -57,23 +57,24 @@
 (def voices-max 8)
 (defonce voices (ref ()))
 
-
 (defn update-ui-state [m]
   (swap! ui-state merge m))
 
 (defn ctl-ui-and-synth
   "Control ui and synth parameters
+
     [synth synth-ctls control-name ui-val]
-       synth - synth to control
-       synth-ctls - list of lists [[ctl val] [ctl val] ... ]
+       synth        - synth to control
+       synth-ctls   - list of lists [[ctl val] [ctl val] ... ]
        control-name - the name of the control being modified
-       ui-val - 0-127 midi velocity
+       ui-val       - 0-127 midi velocity
+
     [synth synth-ctl synth-val ui-val]
-       synth - synth to control
-       synth-ctl - synth parameter to modify
-       synth-val - value to use when modifying synth parameter
+       synth        - synth to control
+       synth-ctl    - synth parameter to modify
+       synth-val    - value to use when modifying synth parameter
        control-name - the name of the control being modified
-       ui-val - 0-127 midi velocity"
+       ui-val       - 0-127 midi velocity"
   ([synth synth-ctls control-name ui-val]
      (doall (map (fn [[synth-ctl synth-val]] (ctl-ui-and-synth mbsynth synth-ctl synth-val control-name ui-val)) synth-ctls)))
 
