@@ -427,7 +427,7 @@
                           (fn [val] (let [old-waveform (:sub-osc-waveform @state)
                                          new-state    (alter-state
                                                        #(assoc % :sub-osc-waveform
-                                                               (if (= val 0)
+                                                               (if (zero? val)
                                                                  ;; button press; switch to next waveform
                                                                  (next-sub-osc-waveform (:sub-osc-waveform %))
                                                                  ;; knob or slider; calculate waveform
@@ -442,7 +442,7 @@
                           (fn [val] (let [old-oct   (:sub-osc-oct @state)
                                          new-state (alter-state
                                                     #(assoc % :sub-osc-oct
-                                                            (if (= val 0)
+                                                            (if (zero? val)
                                                               ;; button press; switch to next oct
                                                               (case old-oct
                                                                 1 2
@@ -468,7 +468,7 @@
                           (fn [val] (let [old-fn    (:mod-wheel-fn @state)
                                          new-state (alter-state
                                                     #(assoc % :mod-wheel-fn
-                                                            (if (= val 0)
+                                                            (if (zero? val)
                                                               ;; button press; switch to next fn
                                                               (next-mod-wheel-fn (:mod-wheel-fn %))
                                                               ;; knob or slider; calc fn
