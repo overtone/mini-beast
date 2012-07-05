@@ -1,57 +1,57 @@
 (ns minibeast.mbsynth
     (:use [overtone.live]))
 
-(defsynth mbsynth 
-  [note           60            ; midi note value
-   volume         1.0           ; gain of the output
-   velocity       1.0           ; gain for the current note
-   osc-sin        0.0           ; osc sin amount
-   osc-saw        1.0           ; osc saw amount
-   osc-square     0.0           ; osc square amount
-   osc-tri        0.0           ; osc triangle amount
-   osc-noise      0.0           ; osc nouse amount
-   sub-osc-sin    0.0           ; sin sub-oscillator
-   sub-osc-square 0.0           ; square sub-oscillator
-   sub-osc-coeff  0.5           ; 0.5 = -1 octave 0.25 = -2 octave
-   osc-square-pw  0.5           ; square osc pulse width
-   osc-square-pw-env 0.0        ; pw modulation by amp envelope
-   lfo-rate       4.0           ; frequency of the LFO
-   tri-fold-thresh 1.0          ; fold threshold for triangle osc
-   tri-fold-env   0.0           ; fold threshold env modulation for triangle osc
-   cutoff-env     0.0           ; cutoff envelope modulation
-   cutoff-tracking 1.0         ; keyboard tracking amount for filter cutoff
-   lfo-sin        1.0           ; LFO sin amount
-   lfo-saw        0.0           ; LFO saw amount
-   lfo-square     0.0           ; LFO square amount
-   lfo-tri        0.0           ; LFO triange amount
-   lfo-rand       0.0           ; LFO random amount
-   lfo-slew-rand  0.0           ; LFO smoothed random amount
-   filter-attack  0.0           ; Filter envelope attack
-   filter-decay   0.0           ; Filter envelope decay
-   filter-sustain 0.0           ; Filter envelope sustain
-   filter-release 0.0           ; Filter envelope release
-   amp-attack     0.1           ; Amp envelope attack
-   amp-decay      0.2           ; Amp envelope decay
-   amp-sustain    0.2           ; Amp envelope sustain
-   amp-release    0.2           ; Amp envelope release
-   lfo2pitch      0.0           ; LFO pitch modulation
-   lfo2filter     0.0           ; LFO filter modulation
-   lfo2amp        0.0           ; LFO amp modulation
-   lfo2pwm        0.0           ; LFO PWM modulation
-   vibrato-rate   0.0           ; vibrato rate Hz
-   vibrato-amp    0.0           ; amount of vibrato modulation 0.0-1.0
-   cutoff         1000.0        ; cutoff frequency of the VCF
-   resonance      1.0           ; resonance of the VCF
-   bend           1.0           ; note bend coeffecient
-   peak           0.5           ; VCF peak control (resonance)
-   saw-detune     1.0           ; phase offset of parallel saw oscs
-   saw-detune-amp 1.0           ; amount of detuned saw osc in the mix
-   portamento     0.0           ; rate to change to new note
-   gate           1.0           ; another output gain?
-   reverb-mix     0.5           ; wet-dry mix
-   reverb-size    0.3           ; reverb room size
-   reverb-damp    0.8           ; reverb dampening
-   feedback-amp   0.0           ; feedback amount
+(defsynth mbsynth
+  [note              {:default 60     :doc " midi note value"}
+   volume            {:default 1.0    :doc "gain of the output"}
+   velocity          {:default 1.0    :doc "gain for the current note"}
+   osc-sin           {:default 0.0    :doc "osc sin amount"}
+   osc-saw           {:default 1.0    :doc "osc saw amount"}
+   osc-square        {:default 0.0    :doc "osc square amount"}
+   osc-tri           {:default 0.0    :doc "osc triangle amount"}
+   osc-noise         {:default 0.0    :doc "osc nouse amount"}
+   sub-osc-sin       {:default 0.0    :doc "sin sub-oscillator"}
+   sub-osc-square    {:default 0.0    :doc "square sub-oscillator"}
+   sub-osc-coeff     {:default 0.5    :doc "0.5 = -1 octave 0.25 = -2 octave"}
+   osc-square-pw     {:default 0.5    :doc "square osc pulse width"}
+   osc-square-pw-env {:default 0.0    :doc "pw modulation by amp envelope"}
+   lfo-rate          {:default 4.0    :doc "frequency of the LFO"}
+   tri-fold-thresh   {:default 1.0    :doc "fold threshold for triangle osc"}
+   tri-fold-env      {:default 0.0    :doc "fold threshold env modulation for triangle osc"}
+   cutoff-env        {:default 0.0    :doc "cutoff envelope modulation"}
+   cutoff-tracking   {:default 1.0    :doc "keyboard tracking amount for filter cutoff"}
+   lfo-sin           {:default 1.0    :doc "LFO sin amount"}
+   lfo-saw           {:default 0.0    :doc "LFO saw amount"}
+   lfo-square        {:default 0.0    :doc "LFO square amount"}
+   lfo-tri           {:default 0.0    :doc "LFO triange amount"}
+   lfo-rand          {:default 0.0    :doc "LFO random amount"}
+   lfo-slew-rand     {:default 0.0    :doc "LFO smoothed random amount"}
+   filter-attack     {:default 0.0    :doc "Filter envelope attack"}
+   filter-decay      {:default 0.0    :doc "Filter envelope decay"}
+   filter-sustain    {:default 0.0    :doc "Filter envelope sustain"}
+   filter-release    {:default 0.0    :doc "Filter envelope release"}
+   amp-attack        {:default 0.1    :doc "Amp envelope attack"}
+   amp-decay         {:default 0.2    :doc "Amp envelope decay"}
+   amp-sustain       {:default 0.2    :doc "Amp envelope sustain"}
+   amp-release       {:default 0.2    :doc "Amp envelope release"}
+   lfo2pitch         {:default 0.0    :doc "LFO pitch modulation"}
+   lfo2filter        {:default 0.0    :doc "LFO filter modulation"}
+   lfo2amp           {:default 0.0    :doc "LFO amp modulation"}
+   lfo2pwm           {:default 0.0    :doc "LFO PWM modulation"}
+   vibrato-rate      {:default 0.0    :doc "vibrato rate Hz"}
+   vibrato-amp       {:default 0.0    :doc "amount of vibrato modulation 0.0-1.0"}
+   cutoff            {:default 1000.0 :doc "cutoff frequency of the VCF"}
+   resonance         {:default 1.0    :doc "resonance of the VCF"}
+   bend              {:default 1.0    :doc "note bend coeffecient"}
+   peak              {:default 0.5    :doc "VCF peak control (resonance)"}
+   saw-detune        {:default 1.0    :doc "phase offset of parallel saw oscs"}
+   saw-detune-amp    {:default 1.0    :doc "amount of detuned saw osc in the mix"}
+   portamento        {:default 0.0    :doc "rate to change to new note"}
+   gate              {:default 1.0    :doc "another output gain?"}
+   reverb-mix        {:default 0.5    :doc "wet-dry mix"}
+   reverb-size       {:default 0.3    :doc "reverb room size"}
+   reverb-damp       {:default 0.8    :doc "reverb dampening"}
+   feedback-amp      {:default 0.0    :doc "feedback amount"}
    ]
   (let [AMP-ADSR        (tap :amp-adsr 10
                              (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate))
