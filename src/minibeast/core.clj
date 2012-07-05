@@ -47,13 +47,10 @@
 ;; to the operation of the ui of the synth.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def ui-state (atom {}))
-
-(def selected-control (atom nil))
-
-(def dragged-control (atom nil))
-
-(def dev-chan-note-cmd->control (atom {}))
+(defonce ui-state                   (atom {}))
+(defonce selected-control           (atom nil))
+(defonce dragged-control            (atom nil))
+(defonce dev-chan-note-cmd->control (atom {}))
 
 (defn update-ui-state [m]
   (swap! ui-state merge m))
