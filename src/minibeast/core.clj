@@ -1,11 +1,11 @@
 (ns minibeast.core
     (:gen-class)
-    (:import (javax.swing JFileChooser JMenuBar JMenu JMenuItem) 
+    (:import (javax.swing JFileChooser JMenuBar JMenu JMenuItem)
              (javax.swing.filechooser FileNameExtensionFilter)
              (java.awt.event ActionEvent ActionListener)
              (java.io File))
     (:use [overtone.live :exclude (mouse-button mouse-x mouse-y)]
-          [quil.core :exclude (abs acos asin atan atan2 ceil cos 
+          [quil.core :exclude (abs acos asin atan atan2 ceil cos
                                exp line log
                                ;;  mouse-button mouse-x mouse-y
                                pow round scale sin state sqrt tan triangle
@@ -13,8 +13,7 @@
           [minibeast.version :only [BEAST-VERSION-STR]]
           [quil.applet]
           [event.arp]
-          [minibeast.mbsynth]
-    ))
+          [minibeast.mbsynth]))
 
 (import 'java.awt.event.KeyEvent)
 (refer 'clojure.set :only '[difference])
@@ -66,7 +65,7 @@
 (defn update-ui-state [m]
     (swap! ui-state merge m))
 
-(defn ctl-ui-and-synth 
+(defn ctl-ui-and-synth
   "Control ui and synth parameters
     [synth synth-ctls control-name ui-val]
        synth - synth to control
@@ -175,7 +174,7 @@
                          ui-val ((:ui-fn matched-control) vel)]
                          (ctl-ui-and-synth mbsynth synth-ctls control-name ui-val)))
              (do
-               (println "assigning assoc " 
+               (println "assigning assoc "
                       {:device-name device-name :chan chan :note note :cmd cmd}
                       @selected-control)
                ;; make the association between the midi event and the synth control
@@ -417,11 +416,11 @@
                                                       ;; button press; switch to next waveform
                                                       (next-lfo-waveform (:lfo-waveform %))
                                                       ;; knob or slider; calculate waveform
-                                                      (lfo-waveforms (int (* (/ val 128.0) (count lfo-waveforms))))))) 
+                                                      (lfo-waveforms (int (* (/ val 128.0) (count lfo-waveforms)))))))
                                           new-waveform (:lfo-waveform new-state)]
                                           ;; Toggle lfo waveform
                                           [[old-waveform 0] [new-waveform (:lfo-amp @state)]]))
-                      (fn [val] (case (:lfo-waveform @state) 
+                      (fn [val] (case (:lfo-waveform @state)
                                     :lfo-sin 60 :lfo-tri 75 :lfo-saw 89 :lfo-square 100 :lfo-rand 115 :lfo-slew-rand 130)))
 
     ;; sub-octave osc waveform selector
@@ -433,11 +432,11 @@
                                                       ;; button press; switch to next waveform
                                                       (next-sub-osc-waveform (:sub-osc-waveform %))
                                                       ;; knob or slider; calculate waveform
-                                                      (sub-osc-waveforms (int (* (/ val 128.0) (count sub-osc-waveforms))))))) 
+                                                      (sub-osc-waveforms (int (* (/ val 128.0) (count sub-osc-waveforms)))))))
                                       new-waveform (:sub-osc-waveform new-state)]
                                       ;; Toggle sub-osc waveform
                                       [[old-waveform 0] [new-waveform (:sub-osc-amp @state)]]))
-                      (fn [val] (case (:sub-osc-waveform @state) 
+                      (fn [val] (case (:sub-osc-waveform @state)
                                     :sub-osc-square 0 :sub-osc-sin 16 -10)))
     ;; sub-osc octave selector
     (AdvancedControl. 290 106 :selector {} :sub-osc-oct
@@ -450,13 +449,13 @@
                                                         1 2
                                                         2 1)
                                                       ;; knob or slider; calculate waveform
-                                                      ([1 2] (int (* (/ val 128.0) (count [1 2]))))))) 
+                                                      ([1 2] (int (* (/ val 128.0) (count [1 2])))))))
                                       new-oct (:sub-osc-oct new-state)]
                                       ;; Toggle sub-osc octave
                                       [[:sub-osc-coeff (case (:sub-osc-oct @state)
                                                          1 0.5
                                                          2 0.25)]]))
-                      (fn [val] (case (:sub-osc-oct @state) 
+                      (fn [val] (case (:sub-osc-oct @state)
                                     1 0 2 16)))
 
     ;; Sub-octave amount
@@ -480,12 +479,12 @@
                       (fn [val] (case  (:mod-wheel-fn @state)
                                        :cutoff 0 :vibrato 10 :lfo-amount 20)))
 
-    ;; Ptch bend wheel 
+    ;; Ptch bend wheel
     (AdvancedControl. 100 165 :wheel {:caption "Pitch"} :pitch-wheel
                       ;; bend fn val:127->2.0 val:64->1.0
                       (fn [val] [[:bend (+ (* val (/ 1.0 63)) (- 2 (/ 127.0 63)))]])
                       (fn [val] val))
-    ;; Mod-wheel 
+    ;; Mod-wheel
     (AdvancedControl. 170 165 :wheel {:caption "Modulation"} :mod-wheel
                       (fn [val] (case (:mod-wheel-fn @state)
                                       :cutoff [[:cutoff (* (- val 10) 100.0)]]
@@ -547,7 +546,7 @@
     ;; reset the ui and synth to pre-file-loaded values
     (reset! ui-state {})
     (reset-synth-defaults mbsynth)
-    (doall (map (fn [[k v]] 
+    (doall (map (fn [[k v]]
                     (let [control (ctl->control k)
                           synth-val ((:synth-fn control) v)]
                       (ctl-ui-and-synth mbsynth synth-val (:name control) v))) patch))
@@ -629,7 +628,7 @@
         fil (apply max (map (fn [s] @(-> s :taps :filter-adsr)) synths))
         filter-tint (color 0 255 0 (* 255 fil))
         off-tint (color 65 65 65 255)
-        draw-led (fn [x y t] 
+        draw-led (fn [x y t]
                      (tint off-tint)
                      (image led-background-img (+ 10 x) (+ 10 y))
                      (tint t)
@@ -684,7 +683,7 @@
 
 (defsketch synth-sketch
   :title "MiniBeast"
-  :setup setup 
+  :setup setup
   :draw draw
   :mouse-clicked mouse-clicked
   :mouse-dragged mouse-dragged
@@ -695,4 +694,3 @@
 
 (defn -main [& args]
   (println "Started"))
-
