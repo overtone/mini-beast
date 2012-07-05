@@ -53,23 +53,26 @@
    reverb-damp       {:default 0.8    :doc "reverb dampening"}
    feedback-amp      {:default 0.0    :doc "feedback amount"}
    ]
-  (let [AMP-ADSR        (tap :amp-adsr 10
-                             (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate))
-        FILTER-ADSR     (tap :filter-adsr 10
-                             (env-gen (adsr filter-attack filter-decay filter-sustain filter-release) gate))
-        LFO             (tap :lfo 10
-                            (+ (* lfo-sin 
-                                   (sin-osc lfo-rate))
-                               (* lfo-saw
-                                   (lf-saw lfo-rate))
-                               (* lfo-square
-                                   (square lfo-rate))
-                               (* lfo-tri
-                                   (lf-tri lfo-rate))
-                               (* lfo-rand
-                                   (t-rand -1.0 1.0 (sin-osc lfo-rate)))
-                               (* lfo-slew-rand
-                                   (slew (t-rand -1.0 1.0 (sin-osc lfo-rate) 16.0 16.0)))))
+  (let [AMP-ADSR        (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate)
+        amp-adsr-tap    (tap :amp-adsr 10
+                             AMP-ADSR)
+        FILTER-ADSR     (env-gen (adsr filter-attack filter-decay filter-sustain filter-release) gate)
+        filter-adsr-tap (tap :filter-adsr 10
+                             FILTER-ADSR)
+        LFO             (+ (* lfo-sin
+                              (sin-osc lfo-rate))
+                           (* lfo-saw
+                              (lf-saw lfo-rate))
+                           (* lfo-square
+                              (square lfo-rate))
+                           (* lfo-tri
+                              (lf-tri lfo-rate))
+                           (* lfo-rand
+                              (t-rand -1.0 1.0 (sin-osc lfo-rate)))
+                           (* lfo-slew-rand
+                              (slew (t-rand -1.0 1.0 (sin-osc lfo-rate) 16.0 16.0))))
+        lfo-tap         (tap :lfo 10
+                             (lag-ud LFO 0 0.9))
         VIBRATO-LFO     (* vibrato-amp (sin-osc vibrato-rate))
         input-note-freq (midicps note)
         glide-rate      (/ input-note-freq portamento)
@@ -92,12 +95,12 @@
         VCF             (moog-ff (+ VCO (* feedback-amp (local-in))) (* FILTER-ADSR vcf-freq) resonance)
         VCA             (+ (* lfo2amp LFO) AMP-ADSR VIBRATO-LFO)
         OUT             (free-verb (comb-n (softclip (* volume velocity VCA VCF))
-                                1.0
-                                0.1
-                                0.5) reverb-mix reverb-size reverb-damp)
+                                           1.0
+                                           0.1
+                                           0.5) reverb-mix reverb-size reverb-damp)
         _               (local-out OUT)
         ]
-     (out 0 (pan2 OUT))))
+    (out 0 (pan2 OUT))))
 
 
 ;(defn arp5 [i]
@@ -109,7 +112,7 @@
 ;    (if (== i 0)
 ;        (ctl synth0 :note start-note))
 ;    (apply-at (+ (now) (* arp-time arp-speed))
-;      (fn [] 
+;      (fn []
 ;        (let [notes [0 7 12 19 24 19 12 7]
 ;              note  (+ (:note state) (nth notes (mod i (count notes))))]
 ;          (println "arp5 " note)
@@ -120,4 +123,3 @@
 ;                  (arp5 (inc i)))
 ;              (println "arp stop")))))))
 ;
-
