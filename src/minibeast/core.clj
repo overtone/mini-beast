@@ -63,22 +63,20 @@
 (defn ctl-ui-and-synth
   "Control ui and synth parameters
 
-    [synth synth-ctls control-name ui-val]
-       synth        - synth to control
+    [synth-ctls control-name ui-val]
        synth-ctls   - list of lists [[ctl val] [ctl val] ... ]
        control-name - the name of the control being modified
        ui-val       - 0-127 midi velocity
 
-    [synth synth-ctl synth-val ui-val]
-       synth        - synth to control
+    [synth-ctl synth-val ui-val]
        synth-ctl    - synth parameter to modify
        synth-val    - value to use when modifying synth parameter
        control-name - the name of the control being modified
        ui-val       - 0-127 midi velocity"
-  ([synth synth-ctls control-name ui-val]
-     (doall (map (fn [[synth-ctl synth-val]] (ctl-ui-and-synth mbsynth synth-ctl synth-val control-name ui-val)) synth-ctls)))
+  ([synth-ctls control-name ui-val]
+     (doall (map (fn [[synth-ctl synth-val]] (ctl-ui-and-synth synth-ctl synth-val control-name ui-val)) synth-ctls)))
 
-  ([synth synth-ctl synth-val control-name ui-val]
+  ([synth-ctl synth-val control-name ui-val]
      (update-ui-state {control-name  ui-val})
      (ctl (map :id synths) synth-ctl synth-val)))
 
@@ -151,31 +149,38 @@
   (if-let [voice (remove-first-match #(= (:note %) note) voices)]
     (ctl (:synth voice) :gate 0.0)))
 
-(defn handle-control [{{device-name :name} :device note :note chan :channel vel :velocity ts :timestamp msg :msg}]
-  (let [cmd (.getCommand  msg)]
-    (if (nil? @selected-control)
-      ;; lookup a control matching the device, channel, note, and cmd
-      (if-let [matched-control (@dev-chan-note-cmd->control
-                                {:device-name device-name
-                                 :chan chan
-                                 :note note
-                                 :cmd cmd})]
-        ;; find the synth parameter this control controls
-        (let [synth-ctls   ((:synth-fn matched-control) vel)
-              control-name (:name matched-control)
-              ui-val       ((:ui-fn matched-control) vel)]
-          (ctl-ui-and-synth mbsynth synth-ctls control-name ui-val)))
-      (do
-        (println "assigning assoc "
-                 {:device-name device-name :chan chan :note note :cmd cmd}
-                 @selected-control)
-        ;; make the association between the midi event and the synth control
-        (swap! dev-chan-note-cmd->control
-               assoc
+(defn handle-control
+  "Typically called with an incoming MIDI control message."
+  [{{device-name :name} :device
+    note                :note
+    chan                :channel
+    vel                 :velocity
+    ts                  :timestamp
+    msg                 :msg
+    cmd                 :command}]
+  (if (nil? @selected-control)
+    ;; lookup a control matching the device, channel, note, and cmd
+    (if-let [matched-control (@dev-chan-note-cmd->control
+                              {:device-name device-name
+                               :chan        chan
+                               :note        note
+                               :cmd         cmd})]
+      ;; find the synth parameter this control controls
+      (let [synth-ctls   ((:synth-fn matched-control) vel)
+            control-name (:name matched-control)
+            ui-val       ((:ui-fn matched-control) vel)]
+        (ctl-ui-and-synth synth-ctls control-name ui-val)))
+    (do
+      (println "assigning assoc "
                {:device-name device-name :chan chan :note note :cmd cmd}
                @selected-control)
-        ;; clear the selected control value
-        (reset! selected-control nil)))))
+      ;; make the association between the midi event and the synth control
+      (swap! dev-chan-note-cmd->control
+             assoc
+             {:device-name device-name :chan chan :note note :cmd cmd}
+             @selected-control)
+      ;; clear the selected control value
+      (reset! selected-control nil))))
 
 ;; x,y screen postion of the control
 ;; type :knob, :slider, :selector
@@ -509,8 +514,8 @@
     (doall (map (fn [[k v]]
                   (let [control   (ctl->control k)
                         synth-val ((:synth-fn control) v)]
-                    (ctl-ui-and-synth mbsynth synth-val (:name control) v))) patch))
-    (ctl-ui-and-synth mbsynth :gate 0.0 nil nil)))
+                    (ctl-ui-and-synth synth-val (:name control) v))) patch))
+    (ctl-ui-and-synth :gate 0.0 nil nil)))
 
 (defn apply-synth-settings-from-file []
   (let [extFilter   (FileNameExtensionFilter. "Patch (*.patch)" (into-array  ["patch"]))
@@ -632,7 +637,7 @@
         synth-ctls   ((:synth-fn c) new-val)
         ui-val       ((:ui-fn c) new-val)]
     (println "last-val " last-val "new-val " new-val "ctls " synth-ctls " ui-val " ui-val)
-    (ctl-ui-and-synth mbsynth synth-ctls control-name ui-val)))
+    (ctl-ui-and-synth synth-ctls control-name ui-val)))
 
 ;; stop dragging
 (defn mouse-released []
