@@ -340,11 +340,11 @@
   (concat
    (map control->advanced-control
         [
-         (Control. 885 38 :knob (assoc pos-only-knob :caption "Master Volume") :volume (fn [val] (/ val 12.0)))
+         (Control. 885 38 :knob (assoc pos-only-knob :caption "Master Volume") :volume      (fn [val] (/ val 12.0)))
          (Control. 750 38 :knob (assoc pos-only-knob :caption "Feedback Amt") :feedback-amp (fn [val] (/ val 127.0)))
-         (Control. 545 35 :knob (assoc pos-only-knob :caption "Cutoff") :cutoff (fn [val] (* (- val 10) 100.0)))
-         (Control. 613 35 :knob (assoc pos-only-knob :caption "Resonance") :resonance (fn [val] (/ val 32.0)))
-         (Control. 479 35 :knob (assoc pos-only-knob :caption "Tri fold") :tri-fold-thresh (fn [val] (+ (/ val -127.0) 1)))
+         (Control. 545 35 :knob (assoc pos-only-knob :caption "Cutoff") :cutoff             (fn [val] (* (- val 10) 100.0)))
+         (Control. 613 35 :knob (assoc pos-only-knob :caption "Resonance") :resonance       (fn [val] (/ val 32.0)))
+         (Control. 479 35 :knob (assoc pos-only-knob :caption "Tri fold") :tri-fold-thresh  (fn [val] (+ (/ val -127.0) 1)))
          (Control. 341 35 :knob (assoc pos-only-knob :caption "Detune Amt") :saw-detune-amp (fn [val] (/ val 127.0)))
          (Control. 409 38 :knob (assoc pos-only-knob :caption "Pulse Width"
                                        :start-sym "50%"
@@ -352,43 +352,43 @@
                                        :sym-dy -5)
                    :osc-square-pw (fn [val] (+ (/ val 255.0) 0.5)))
 
-         (Control. 320 265 :slider {} :osc-saw         (fn [val] (/ val 127.0)))
-         (Control. 360 265 :slider {} :osc-square      (fn [val] (/ val 127.0)))
-         (Control. 400 265 :slider {} :osc-tri         (fn [val] (/ val 127.0)))
-         (Control. 440 265 :slider {} :osc-noise       (fn [val] (/ val 127.0)))
+         (Control. 320 265 :slider {} :osc-saw    (fn [val] (/ val 127.0)))
+         (Control. 360 265 :slider {} :osc-square (fn [val] (/ val 127.0)))
+         (Control. 400 265 :slider {} :osc-tri    (fn [val] (/ val 127.0)))
+         (Control. 440 265 :slider {} :osc-noise  (fn [val] (/ val 127.0)))
 
-         (Control. 475 332 :knob (assoc plus-minus-knob :caption "PWM") :lfo2pwm (fn [val] (- (/ val 32.0) 1.98)))
-         (Control. 544 332 :knob (assoc plus-minus-knob :caption "Pitch") :lfo2pitch (fn [val] (- (/ val 2.0) 32.0)))
+         (Control. 475 332 :knob (assoc plus-minus-knob :caption "PWM") :lfo2pwm       (fn [val] (- (/ val 32.0) 1.98)))
+         (Control. 544 332 :knob (assoc plus-minus-knob :caption "Pitch") :lfo2pitch   (fn [val] (- (/ val 2.0) 32.0)))
          (Control. 612 332 :knob (assoc plus-minus-knob :caption "Filter") :lfo2filter (fn [val] (* (- val 64.0) 400.0)))
          (Control. 681 332 :knob (assoc plus-minus-knob :caption "Amp" :caption-dx -25 :caption-dy -55)
                    :lfo2amp (fn [val] (- (/ val 32) 1.98)))
-         (Control. 338 398 :knob (assoc pos-only-knob :caption "Glide") :portamento (fn [val] (/ val 1270.0)))
+         (Control. 338 398 :knob (assoc pos-only-knob :caption "Glide") :portamento  (fn [val] (/ val 1270.0)))
          (Control. 408 398 :knob (assoc pos-only-knob :caption "Rate") :vibrato-rate (fn [val] (/ val 8.0)))
          (Control. 408 332 :knob (assoc pos-only-knob :caption "Amp")  :vibrato-amp  (fn [val] (/ val 127.0)))
          (Control. 546 398 :knob (assoc pos-only-knob :caption "Rate") :lfo-rate
                    (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 3.0)))
 
-         (Control. 341 102 :knob (assoc pos-only-knob :caption "Detune Rate") :saw-detune (fn [val] (/ val 8.0)))
+         (Control. 341 102 :knob (assoc pos-only-knob :caption "Detune Rate") :saw-detune      (fn [val] (/ val 8.0)))
          (Control. 409 102 :knob (assoc plus-minus-knob :caption "ENV Amt") :osc-square-pw-env (fn [val] (- (/ val 64.0) 1.0)))
-         (Control. 479 102 :knob (assoc plus-minus-knob :caption "ENV Amt") :tri-fold-env       (fn [val] (- (/ val 64.0) 1.0)))
-         (Control. 545 102 :knob (assoc plus-minus-knob :caption "ENV Amt") :cutoff-env (fn [val] (* (- val 64.0) 200.0)))
+         (Control. 479 102 :knob (assoc plus-minus-knob :caption "ENV Amt") :tri-fold-env      (fn [val] (- (/ val 64.0) 1.0)))
+         (Control. 545 102 :knob (assoc plus-minus-knob :caption "ENV Amt") :cutoff-env        (fn [val] (* (- val 64.0) 200.0)))
          (Control. 613 102  :knob (assoc pos-only-knob :caption "KBD Tracking"
                                          :start-sym "0%"
                                          :end-sym "200%"
                                          :sym-dy -5)
                    :cutoff-tracking (fn [val] (/ val 64.0)))
-         (Control. 130 332 :knob (assoc pos-only-knob :caption "Mix") :reverb-mix (fn [val] (/ val 127.0)))
+         (Control. 130 332 :knob (assoc pos-only-knob :caption "Mix") :reverb-mix   (fn [val] (/ val 127.0)))
          (Control. 200 332 :knob (assoc pos-only-knob :caption "Size") :reverb-size (fn [val] (/ val 127.0)))
          (Control. 130 398 :knob (assoc pos-only-knob :caption "Damp") :reverb-damp (fn [val] (/ val 127.0)))
 
-         (Control. 565 265 :slider {:caption "Attack"} :filter-attack      (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 605 265 :slider {:caption "Decay"} :filter-decay       (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 645 265 :slider {:caption "Sustain"} :filter-sustain     (fn [val] (/ val 127.0)))
-         (Control. 685 265 :slider {:caption "Release"} :filter-release     (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+         (Control. 565 265 :slider {:caption "Attack"} :filter-attack   (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+         (Control. 605 265 :slider {:caption "Decay"} :filter-decay     (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+         (Control. 645 265 :slider {:caption "Sustain"} :filter-sustain (fn [val] (/ val 127.0)))
+         (Control. 685 265 :slider {:caption "Release"} :filter-release (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
          (Control. 770 265 :slider {:caption "Attack"} :amp-attack      (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 810 265 :slider {:caption "Decay"} :amp-decay       (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 850 265 :slider {:caption "Sustain"} :amp-sustain     (fn [val] (/ val 127.0)))
-         (Control. 890 265 :slider {:caption "Release"} :amp-release     (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+         (Control. 810 265 :slider {:caption "Decay"} :amp-decay        (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+         (Control. 850 265 :slider {:caption "Sustain"} :amp-sustain    (fn [val] (/ val 127.0)))
+         (Control. 890 265 :slider {:caption "Release"} :amp-release    (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
          ]) [
              ;; Put advanced controls here [x y synth-fn ui-fn]
              ;; LFO waveform selector
