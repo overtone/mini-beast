@@ -177,22 +177,6 @@
         ;; clear the selected control value
         (reset! selected-control nil)))))
 
-(on-event [:midi :note-on]
-          (fn [{note :note velocity :velocity}]
-            (println "keydown " note)
-            (keydown note (/ velocity 127.0))) ::note-on-handler)
-
-(on-event [:midi :note-off]
-          (fn [{note :note}]
-            (println "keyup " note)
-            (keyup note)) ::note-off-handler)
-
-(on-event [:midi :control-change]
-          handle-control ::ctl-event-handler)
-
-(on-event [:midi :pitch-bend]
-          handle-control ::bend-event-handler)
-
 ;; x,y screen postion of the control
 ;; type :knob, :slider, :selector
 ;; ui-hints map of hints to draw the control {pos-indicator? start-sym end-sym zero? caption}
@@ -667,6 +651,28 @@
   :key-typed key-typed
   :decor true
   :size [1036 850])
+
+
+(on-event [:midi :note-on]
+          (fn [{note :note velocity :velocity}]
+            (println "keydown " note)
+            (keydown note (/ velocity 127.0)))
+          ::note-on-handler)
+
+(on-event [:midi :note-off]
+          (fn [{note :note}]
+            (println "keyup " note)
+            (keyup note))
+          ::note-off-handler)
+
+(on-event [:midi :control-change]
+          handle-control
+          ::ctl-event-handler)
+
+(on-event [:midi :pitch-bend]
+          handle-control
+          ::bend-event-handler)
+
 
 (defn -main [& args]
   (println "Started"))
