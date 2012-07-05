@@ -1,5 +1,5 @@
 (ns minibeast.mbsynth
-    (:use [overtone.live]))
+  (:use [overtone.live]))
 
 (defsynth mbsynth
   [note              {:default 60     :doc " midi note value"}
