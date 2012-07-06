@@ -466,7 +466,7 @@
                                                               ;; button press; switch to next fn
                                                               (next-mod-wheel-fn (:mod-wheel-fn %))
                                                               ;; knob or slider; calc fn
-@                                                              (mod-wheel-fns (int (* (/ val 128.0) (count mod-wheel-fns)))))))
+                                                              (mod-wheel-fns (int (* (/ val 128.0) (count mod-wheel-fns)))))))
                                          new-fn    (:mod-wheel-fn new-state)]
                                      []))
                           (fn [val] (case  (:mod-wheel-fn @synth-state)
