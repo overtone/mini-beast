@@ -627,7 +627,7 @@
         control-name (:name c)
         last-val     (or (get @ui-state control-name) 0)
         ;; constrain new-val to 0-127.0
-        new-val      (max 0.0 (min 127.0 (+ last-val dy)))
+        new-val      (max 0.0 (min 127.0 (- last-val dy)))
         synth-ctls   ((:synth-fn c) new-val)
         ui-val       ((:ui-fn c) new-val)]
     (println "last-val " last-val "new-val " new-val "ctls " synth-ctls " ui-val " ui-val)
