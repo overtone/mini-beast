@@ -685,8 +685,6 @@
                   :key-typed key-typed
                   :decor true
                   :size [1036 850])
-
-        _        (Thread/sleep 500)
         frame    (-> sk meta :target-obj deref)]
     (doto frame
       (.setJMenuBar mb)
