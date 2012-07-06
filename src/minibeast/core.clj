@@ -238,8 +238,8 @@
         (text caption (+ cdx 0) (+ cdy 30))))
     (rotate (- (* amount 0.038) 2.4))
     (translate (- w2) (- w2))
-    (if selected?
-      (tint 255 200 128))
+    (when selected?
+      (tint 255 100 100))
     (image knob-img 0 0)
     (tint 255 255 255)))
 
