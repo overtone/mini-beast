@@ -136,13 +136,16 @@
 
 ;; Find a synth and turn it on. Turn off an old synth if we need to free one up.
 (defn keydown [note velocity]
-  (let [synthid (getsynth note)]
-    ;; turn off the old note. Maybe this is a reused synth
-    (ctl synthid :gate 0.0)
-    ;; turn on the new note
-    (ctl synthid :note note)
-    (ctl synthid :velocity velocity)
-    (ctl synthid :gate 1.0)))
+  (println "keydown " note)
+  (dosync
+    (if-not (some #(= (:note %) note) @voices)
+      (let [synthid (getsynth note)]
+        ;; turn off the old note. Maybe this is a reused synth
+        (ctl synthid :gate 0.0)
+        ;; turn on the new note
+        (ctl synthid :note note)
+        (ctl synthid :velocity velocity)
+        (ctl synthid :gate 1.0)))))
 
 ;; Find a synth to turn off
 (defn keyup [note]
@@ -218,8 +221,6 @@
     (apply translate tl)
     (text-size 8)
     (text-align :center)
-                                        ;(if (= [x y] [475 332])
-                                        ;  (apply print (interpose " " [x y amount pos-indicator? start-sym end-sym zero? caption])))
     (if pos-indicator?
       (image knob-background-img (- 0 w2) (- 1 w2)))
     (if-not (nil? start-sym)
@@ -636,8 +637,51 @@
 (defn mouse-released []
   (reset! dragged-control nil))
 
-(defn key-typed []
-  (println (key-code)))
+(defn key-code->note [key-code]
+  (get ;; Row one
+       {KeyEvent/VK_Q         (note :C3)
+        KeyEvent/VK_2         (note :C#3)
+        KeyEvent/VK_W         (note :D3)
+        KeyEvent/VK_3         (note :D#3)
+        KeyEvent/VK_E         (note :E3)
+        KeyEvent/VK_R         (note :F3)
+        KeyEvent/VK_5         (note :F#3)
+        KeyEvent/VK_T         (note :G3)
+        KeyEvent/VK_6         (note :G#3)
+        KeyEvent/VK_Y         (note :A3)
+        KeyEvent/VK_7         (note :A#3)
+        KeyEvent/VK_U         (note :B3)
+        KeyEvent/VK_I         (note :C4)
+        KeyEvent/VK_9         (note :C#4)
+        KeyEvent/VK_O         (note :D4)
+        KeyEvent/VK_0         (note :D#4)
+        KeyEvent/VK_P         (note :E4)
+        ;; Row two
+        KeyEvent/VK_Z         (note :C2)
+        KeyEvent/VK_S         (note :C#2)
+        KeyEvent/VK_X         (note :D2)
+        KeyEvent/VK_D         (note :D#2)
+        KeyEvent/VK_C         (note :E2)
+        KeyEvent/VK_V         (note :F2)
+        KeyEvent/VK_G         (note :F#2)
+        KeyEvent/VK_B         (note :G2)
+        KeyEvent/VK_H         (note :G#2)
+        KeyEvent/VK_N         (note :A2)
+        KeyEvent/VK_J         (note :A#2)
+        KeyEvent/VK_M         (note :B2)
+        KeyEvent/VK_COMMA     (note :C3)
+        KeyEvent/VK_L         (note :C#3)
+        KeyEvent/VK_PERIOD    (note :D3)
+        KeyEvent/VK_SEMICOLON (note :D#3)
+        KeyEvent/VK_SLASH     (note :E3)} key-code))
+
+(defn key-pressed []
+  (if-let [note (key-code->note (key-code))]
+    (keydown note 1.0)))
+
+(defn key-released []
+  (if-let [note (key-code->note (key-code))]
+    (keyup note)))
 
 (on-event [:midi :note-on]
           (fn [{note :note velocity :velocity}]
@@ -682,7 +726,8 @@
                   :mouse-clicked mouse-clicked
                   :mouse-dragged mouse-dragged
                   :mouse-released mouse-released
-                  :key-typed key-typed
+                  :key-pressed key-pressed
+                  :key-released key-released
                   :decor true
                   :size [1036 850])
         frame    (-> sk meta :target-obj deref)]
