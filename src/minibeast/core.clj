@@ -554,7 +554,7 @@
 
 (defn setup []
   (smooth)
-  (frame-rate 30)
+  (frame-rate 10)
   (background 0)
   ;; load the most bad-est preset possible!
   (load-synth-settings-from-file "./presets/way-huge.patch")
