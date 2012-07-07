@@ -4,5 +4,5 @@
                  [overtone "0.8.0-SNAPSHOT"]
                  [quil "1.6.0"]
                  [commons-collections "3.0-dev2"]]
-  :main minibeast.core
+  :main ^{:skip-aot true} minibeast.core
   :repl-init minibeast.core)

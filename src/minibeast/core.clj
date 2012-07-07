@@ -1,5 +1,4 @@
 (ns minibeast.core
-  (:gen-class)
   (:import (javax.swing JFileChooser JMenuBar JMenu JMenuItem)
            (javax.swing.filechooser FileNameExtensionFilter)
            (java.awt.event ActionListener)
@@ -703,7 +702,8 @@
           ::bend-event-handler)
 
 
-(defn -main [& args]
+(defn -main
+  [& args]
   (println "starting...")
   (let [listener (proxy [ActionListener] []
                    (actionPerformed [event]
@@ -736,5 +736,3 @@
 
 
   (println "Started"))
-
-(-main)
