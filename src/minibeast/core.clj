@@ -2,7 +2,7 @@
   (:gen-class)
   (:import (javax.swing JFileChooser JMenuBar JMenu JMenuItem)
            (javax.swing.filechooser FileNameExtensionFilter)
-           (java.awt.event ActionEvent ActionListener KeyEvent)
+           (java.awt.event ActionListener)
            (java.io File))
   (:use [overtone.live :exclude (mouse-button mouse-x mouse-y)]
         [quil.core :exclude (abs acos asin atan atan2 ceil cos
@@ -136,7 +136,6 @@
 
 ;; Find a synth and turn it on. Turn off an old synth if we need to free one up.
 (defn keydown [note velocity]
-  (println "keydown " note)
   (dosync
     (if-not (some #(= (:note %) note) @voices)
       (let [synthid (getsynth note)]
@@ -639,59 +638,59 @@
 
 (defn key-code->note [key-code]
   (get ;; Row one
-       {KeyEvent/VK_Q         (note :C3)
-        KeyEvent/VK_2         (note :C#3)
-        KeyEvent/VK_W         (note :D3)
-        KeyEvent/VK_3         (note :D#3)
-        KeyEvent/VK_E         (note :E3)
-        KeyEvent/VK_R         (note :F3)
-        KeyEvent/VK_5         (note :F#3)
-        KeyEvent/VK_T         (note :G3)
-        KeyEvent/VK_6         (note :G#3)
-        KeyEvent/VK_Y         (note :A3)
-        KeyEvent/VK_7         (note :A#3)
-        KeyEvent/VK_U         (note :B3)
-        KeyEvent/VK_I         (note :C4)
-        KeyEvent/VK_9         (note :C#4)
-        KeyEvent/VK_O         (note :D4)
-        KeyEvent/VK_0         (note :D#4)
-        KeyEvent/VK_P         (note :E4)
-        ;; Row two
-        KeyEvent/VK_Z         (note :C2)
-        KeyEvent/VK_S         (note :C#2)
-        KeyEvent/VK_X         (note :D2)
-        KeyEvent/VK_D         (note :D#2)
-        KeyEvent/VK_C         (note :E2)
-        KeyEvent/VK_V         (note :F2)
-        KeyEvent/VK_G         (note :F#2)
-        KeyEvent/VK_B         (note :G2)
-        KeyEvent/VK_H         (note :G#2)
-        KeyEvent/VK_N         (note :A2)
-        KeyEvent/VK_J         (note :A#2)
-        KeyEvent/VK_M         (note :B2)
-        KeyEvent/VK_COMMA     (note :C3)
-        KeyEvent/VK_L         (note :C#3)
-        KeyEvent/VK_PERIOD    (note :D3)
-        KeyEvent/VK_SEMICOLON (note :D#3)
-        KeyEvent/VK_SLASH     (note :E3)} key-code))
+
+   {\q (note :C3)
+    \2 (note :C#3)
+    \w (note :D3)
+    \3 (note :D#3)
+    \e (note :E3)
+    \r (note :F3)
+    \5 (note :F#3)
+    \t (note :G3)
+    \6 (note :G#3)
+    \y (note :A3)
+    \7 (note :A#3)
+    \u (note :B3)
+    \i (note :C4)
+    \9 (note :C#4)
+    \o (note :D4)
+    \0 (note :D#4)
+    \p (note :E4)
+    ;; Row two
+    \z (note :C2)
+    \s (note :C#2)
+    \x (note :D2)
+    \d (note :D#2)
+    \c (note :E2)
+    \v (note :F2)
+    \g (note :F#2)
+    \b (note :G2)
+    \h (note :G#2)
+    \n (note :A2)
+    \j (note :A#2)
+    \m (note :B2)
+    \, (note :C3)
+    \l (note :C#3)
+    \. (note :D3)
+    \; (note :D#3)
+    \/ (note :E3)} key-code))
 
 (defn key-pressed []
-  (if-let [note (key-code->note (key-code))]
+  (when-let [note (key-code->note (raw-key))]
+    (println "Playing " (find-note-name note))
     (keydown note 1.0)))
 
 (defn key-released []
-  (if-let [note (key-code->note (key-code))]
+  (when-let [note (key-code->note (raw-key))]
     (keyup note)))
 
 (on-event [:midi :note-on]
           (fn [{note :note velocity :velocity}]
-            (println "keydown " note)
             (keydown note (/ velocity 127.0)))
           ::note-on-handler)
 
 (on-event [:midi :note-off]
           (fn [{note :note}]
-            (println "keyup " note)
             (keyup note))
           ::note-off-handler)
 
