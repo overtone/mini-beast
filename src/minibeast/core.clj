@@ -683,28 +683,29 @@
   (when-let [note (key-code->note (raw-key))]
     (keyup note)))
 
-(on-event [:midi :note-on]
-          (fn [{note :note velocity :velocity}]
-            (keydown note (/ velocity 127.0)))
-          ::note-on-handler)
 
-(on-event [:midi :note-off]
-          (fn [{note :note}]
-            (keyup note))
-          ::note-off-handler)
+(defn register-midi-handlers
+  []
+  (on-event [:midi :note-on]
+            (fn [{note :note velocity :velocity}]
+              (keydown note (/ velocity 127.0)))
+            ::note-on-handler)
 
-(on-event [:midi :control-change]
-          handle-control
-          ::ctl-event-handler)
+  (on-event [:midi :note-off]
+            (fn [{note :note}]
+              (keyup note))
+            ::note-off-handler)
 
-(on-event [:midi :pitch-bend]
-          handle-control
-          ::bend-event-handler)
+  (on-event [:midi :control-change]
+            handle-control
+            ::ctl-event-handler)
 
+  (on-event [:midi :pitch-bend]
+            handle-control
+            ::bend-event-handler))
 
-(defn -main
-  [& args]
-  (println "starting...")
+(defn start-gui
+  []
   (let [listener (proxy [ActionListener] []
                    (actionPerformed [event]
                      (menuitem-selected event)))
@@ -732,7 +733,11 @@
         frame    (-> sk meta :target-obj deref)]
     (doto frame
       (.setJMenuBar mb)
-      (.setVisible true)))
+      (.setVisible true))))
 
-
-  (println "Started"))
+(defn -main
+  [& args]
+  (println "--> Starting The MiniBeast...")
+  (register-midi-handlers)
+  (start-gui)
+  (println "--> Beast started..."))
