@@ -209,6 +209,8 @@
   `(let* ~(destructure bindings)
          (do-transformation ~@body)))
 
+(def selected-tint [255 100 100])
+
 (defn draw-knob [x y amount selected? pos-indicator? start-sym end-sym
                  sym-dx sym-dy zero? caption caption-dx caption-dy]
   (let-transformation
@@ -238,7 +240,7 @@
     (rotate (- (* amount 0.038) 2.4))
     (translate (- w2) (- w2))
     (when selected?
-      (tint 255 100 100))
+      (apply tint selected-tint))
     (image knob-img 0 0)
     (tint 255 255 255)))
 
@@ -256,7 +258,7 @@
         (text-align :center)
         (text caption (+ 16 cdx x) (+ cdy y 40))))
     (if selected?
-      (tint 255 200 128))
+      (apply tint selected-tint))
     (image slider-img x (+ y (* -0.6  amount)))
     (tint 255 255 255)))
 
@@ -268,7 +270,7 @@
         selector-img            (state :selector-img) ]
     (image selector-background-img (+ x 1) (+ y 3))
     (if selected?
-      (tint 255 200 128))
+      (apply tint selected-tint))
     (image selector-img x (+ y pos))
     (tint 255 255 255)))
 
@@ -288,7 +290,7 @@
         (text-align :center)
         (text caption (+ 23 cdx x) (+ y cdy 144))))
     (let [tcs (if selected?
-                [255 200 128]
+                selected-tint
                 [255 255 255])]
       (apply tint tcs)
       (image wheel-img x y)
@@ -633,14 +635,20 @@
         c            (if (nil? @dragged-control)
                        (reset! dragged-control (closest-control x y))
                        @dragged-control)
-        dy           (- y (pmouse-y))
+        ;; move sliders 1-to-1 with the ui (* 1/0.6)
+        ;; move selectors at an increased rate (2x)
+        dy           (* (case (:type c)
+                          :slider (/ 1.0 0.6)
+                          :selector 2.0
+                          1.0)
+                        (- y (pmouse-y)))
         control-name (:name c)
         last-val     (or (get @ui-state control-name) 0)
         ;; constrain new-val to 0-127.0
-        new-val      (max 0.0 (min 127.0 (- last-val dy)))
+        new-val      (constrain (- last-val dy) 0.0 127.0)
         synth-ctls   ((:synth-fn c) new-val)
         ui-val       ((:ui-fn c) new-val)]
-    (println "last-val " last-val "new-val " new-val "ctls " synth-ctls " ui-val " ui-val)
+    (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctls " ui-val " ui-val)
     (ctl-ui-and-synth synth-ctls control-name ui-val)))
 
 ;; stop dragging
