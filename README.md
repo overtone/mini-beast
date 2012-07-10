@@ -3,7 +3,7 @@ mini-beast
 
 Digital clone of an analog synthesizer using Overtone and Quil
 
-<img src="https://github.com/overtone/mini-beast/row/master/doc/minibeast.png" alt="MiniBeast Screenshot" />
+<img src="https://github.com/overtone/mini-beast/raw/master/doc/minibeast.png" alt="MiniBeast Screenshot" />
 
 ## Running
     git https://github.com/overtone/mini-beast.git
