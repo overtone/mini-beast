@@ -6,20 +6,15 @@ Digital clone of an analog synthesizer using Overtone and Quil
 <img src="https://github.com/overtone/mini-beast/raw/master/doc/minibeast.png" alt="MiniBeast Screenshot" />
 
 ## Running
-    git https://github.com/overtone/mini-beast.git
+    git clone https://github.com/overtone/mini-beast.git
     cd mini-beast
-    lein deps
-then
     lein run
-or
-    lein repl
-    (-main)
 
-## Notes
-Make sure your MIDI devices are connected before running lein run or lein repl.
-After running mini-beast,  click on a knob slider, selector, or wheel and adjust the control on your MIDI device.
-The synth control and MIDI control  are now bound to each other. Adjusting the control on your MIDI device
-will now update the synth parameter.
+## Tips
+* Make sure your MIDI devices are connected before starting the beast
+* Click on a knob slider, selector, or wheel and adjust the control on your MIDI device.
+* The beast remembers your control bindings, so once you've bound one control, bind another!
+* You can save and load bindings and presets using the `File` menu.
 
 ## A call for patches
 MiniBeast loads a default patch, but we need your help! There is a world of sounds and timbres waiting to be explored.
