@@ -47,7 +47,7 @@
    saw-detune        {:default 1.0    :doc "phase offset of parallel saw oscs"}
    saw-detune-amp    {:default 1.0    :doc "amount of detuned saw osc in the mix"}
    portamento        {:default 0.0    :doc "rate to change to new note"}
-   gate              {:default 1.0    :doc "another output gain?"}
+   gate              {:default 0.0    :doc "amp and filter ADSR gate"}
    reverb-mix        {:default 0.5    :doc "wet-dry mix"}
    reverb-size       {:default 0.3    :doc "reverb room size"}
    reverb-damp       {:default 0.8    :doc "reverb dampening"}
@@ -75,6 +75,7 @@
                              (lag-ud LFO 0 0.9))
         VIBRATO-LFO     (* vibrato-amp (sin-osc vibrato-rate))
         input-note-freq (midicps note)
+        freq-tap        (tap :freq 5 (lag2 input-note-freq 5))
         glide-rate      (/ input-note-freq portamento)
         note-freq       (slew (+ (* input-note-freq bend) (* lfo2pitch LFO)), glide-rate, glide-rate)
         sub-note-freq   (* note-freq sub-osc-coeff)
@@ -93,12 +94,14 @@
                            (* sub-osc-square (square sub-note-freq (* LFO lfo2pwm))))
         vcf-freq        (+ cutoff (* lfo2filter LFO) (* cutoff-tracking note-freq) (* cutoff-env AMP-ADSR))
         VCF             (moog-ff (+ VCO (* feedback-amp (local-in))) (* FILTER-ADSR vcf-freq) resonance)
+        filter-diff-tap (tap :filter-diff 5 (lag2 (- input-note-freq vcf-freq) 5))
         VCA             (+ (* lfo2amp LFO) AMP-ADSR VIBRATO-LFO)
         OUT             (free-verb (comb-n (softclip (* volume velocity VCA VCF))
                                            1.0
                                            0.1
                                            0.5) reverb-mix reverb-size reverb-damp)
         _               (local-out OUT)
+        out-tap         (tap :out 5 (lag2 (abs OUT) 5))
         ]
     (out 0 (pan2 OUT))))
 
