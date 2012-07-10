@@ -585,12 +585,7 @@
         overtone-circle-img (state :overtone-circle-img)
         overtone-text-img   (state :overtone-text-img)
         mini-beast-text-img (state :mini-beast-text-img)
-        taps                (map :taps synths)
-        _                   (color-mode :hsb)
-        overtone-tint       (color (constrain          (apply min (map (fn [t] @(t :freq)) taps)) 0 255)
-                                   (constrain (* -0.03 (apply max (map (fn [t] @(t :filter-diff)) taps))) 0 255)
-                                   (constrain (* 400   (apply max (map (fn [t] @(t :out)) taps))) 0 255))
-        _                   (color-mode :rgb)]
+        overtone-tint       (color 253 0 147)]
     (set-image 0 0 background-img)
     (tint overtone-tint)
     (image overtone-circle-img 65 20)
@@ -600,9 +595,9 @@
     (doall (map draw-control controls))
     (let [lfo         @(-> synths (nth 0) :taps :lfo)
           lfo-tint    (color 255 0 0 (* 255 lfo))
-          amp         (apply max (map (fn [t] @(t :amp-adsr)) taps))
+          amp         (apply max (map (fn [s] @(-> s :taps :amp-adsr)) synths))
           amp-tint    (color 0 255 0 (* 255 amp))
-          fil         (apply max (map (fn [t] @(t :filter-adsr)) taps))
+          fil         (apply max (map (fn [s] @(-> s :taps :filter-adsr)) synths))
           filter-tint (color 0 255 0 (* 255 fil))
           off-tint    (color 65 65 65 255)
           draw-led    (fn [x y t]
