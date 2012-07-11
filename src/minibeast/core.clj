@@ -30,9 +30,11 @@
                   lfo-waveform
                   lfo-amp
                   mod-wheel-fn
+                  mod-wheel-pos
+                  vibrato-fn
                   arp-on])
 
-(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :cutoff false)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :cutoff 0.0 :vibrato false)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
@@ -97,6 +99,12 @@
   (let [fns (cycle mod-wheel-fns)]
     (nth fns (inc (.indexOf fns f)))))
 
+(def vibrato-fns [:vibrato :trill-up :trill-down])
+(defn next-vibrato-fn [f]
+  "Given vibrato fn, return the next fn that can be selected."
+  (let [fns (cycle vibrato-fns)]
+    (nth fns (inc (.indexOf fns f)))))
+
 (defn queue [q e]
   "Add the element e at the end of the queue q."
   (dosync
@@ -158,7 +166,9 @@
     vel                 :velocity
     ts                  :timestamp
     msg                 :msg
-    cmd                 :command}]
+    cmd                 :command
+    :as control-msg}]
+  ;; (println control-msg)
   (if (nil? @selected-control)
     ;; lookup a control matching the device, channel, note, and cmd
     (if-let [matched-control (@dev-chan-note-cmd->control
@@ -374,7 +384,6 @@
 
          (Control. 338 398 :knob (mk-pos-only-knob "Glide")             :portamento        (fn [val] (/ val 1270.0)))
          (Control. 408 398 :knob (mk-pos-only-knob "Rate")              :vibrato-rate      (fn [val] (/ val 8.0)))
-         (Control. 408 332 :knob (mk-pos-only-knob "Amp")               :vibrato-amp       (fn [val] (/ val 127.0)))
          (Control. 546 398 :knob (mk-pos-only-knob "Rate")              :lfo-rate
                    (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 3.0)))
 
@@ -460,18 +469,39 @@
 
         ;; Mod wheel function
         (AdvancedControl. 283 335 :selector {} :mod-wheel-fn
-                          (fn [val] (let [old-fn    (:mod-wheel-fn @synth-state)
+                          (fn [val] (let [old-fn   (:mod-wheel-fn @synth-state)
                                          new-state (alter-state
-                                                    #(assoc % :mod-wheel-fn
+                                                   #(assoc % :mod-wheel-fn
                                                             (if (zero? val)
                                                               ;; button press; switch to next fn
-                                                              (next-mod-wheel-fn (:mod-wheel-fn %))
+                                                              (next-mod-wheel-fn old-fn)
                                                               ;; knob or slider; calc fn
                                                               (mod-wheel-fns (int (* (/ val 128.0) (count mod-wheel-fns)))))))
                                          new-fn    (:mod-wheel-fn new-state)]
                                      []))
                           (fn [val] (case  (:mod-wheel-fn @synth-state)
                                      :cutoff 0 :vibrato 10 :lfo-amount 20)))
+
+        ;; Vibrato type selector
+        (AdvancedControl. 424 338 :selector {} :vibrato-fn
+                          (fn [val] (let [old-fn    (:vibrato-fn @synth-state)
+                                          new-state (alter-state
+                                                      #(assoc % :vibrato-fn
+                                                              (if (zero? val)
+                                                                ;; button press; switch to next fn
+                                                                (next-vibrato-fn old-fn)
+                                                                ;; knob or slider; calc fn
+                                                                (vibrato-fns (int (* (/ val 128.0) (count vibrato-fns)))))))
+                                          new-fn    (:vibrato-fn new-state)
+                                          mod-wheel-pos (:mod-wheel-pos @synth-state)]
+                                      (case (:vibrato-fn @synth-state)
+                                        :vibrato [[:vibrato-amp (/ mod-wheel-pos 127.0)] [:vibrato-trill 0]]
+                                        :trill-up [[:vibrato-amp 0.0] [:vibrato-trill (int (/ mod-wheel-pos 10))]]
+                                        :trill-down [[:vibrato-amp 0.0] [:vibrato-trill (- (int (/ mod-wheel-pos 10)))]])))
+                          (fn [val] (case (:vibrato-fn @synth-state)
+                                      :vibrato 10
+                                      :trill-up 0
+                                      :trill-down 20)))
 
         ;; Ptch bend wheel
         (AdvancedControl. 100 165 :wheel {:caption "Pitch"} :pitch-wheel
@@ -480,9 +510,13 @@
                           (fn [val] val))
         ;; Mod-wheel
         (AdvancedControl. 170 165 :wheel {:caption "Modulation"} :mod-wheel
-                          (fn [val] (case (:mod-wheel-fn @synth-state)
+                          (fn [val] (alter-state #(assoc % :mod-wheel-pos val))
+                                    (case (:mod-wheel-fn @synth-state)
                                      :cutoff [[:cutoff (* (- val 10) 100.0)]]
-                                     :vibrato [[:vibrato-amp (/ val 127.0)]]
+                                     :vibrato (case (:vibrato-fn @synth-state)
+                                                :vibrato [[:vibrato-amp (/ val 127.0)] [:vibrato-trill 0]]
+                                                :trill-up [[:vibrato-amp 0.0] [:vibrato-trill (int (/ val 10))]]
+                                                :trill-down [[:vibrato-amp 0.0] [:vibrato-trill (- (int (/ val 10)))]])
                                      :lfo-amount (do
                                                    (alter-state #(assoc % :lfo-amp (/ val 127.0)))
                                                    [[(:lfo-waveform @synth-state) (/ val 127.0)]])))

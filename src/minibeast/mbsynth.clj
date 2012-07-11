@@ -40,6 +40,8 @@
    lfo2pwm           {:default 0.0    :doc "LFO PWM modulation"}
    vibrato-rate      {:default 0.0    :doc "vibrato rate Hz"}
    vibrato-amp       {:default 0.0    :doc "amount of vibrato modulation 0.0-1.0"}
+   vibrato-trill     {:default 0.0    :doc "trill amount. 0 is no trill. 1 is trill up one half-step. -1 is trill down one half-step
+                                           2 is tril up a whole step. etc."}
    cutoff            {:default 1000.0 :doc "cutoff frequency of the VCF"}
    resonance         {:default 1.0    :doc "resonance of the VCF"}
    bend              {:default 1.0    :doc "note bend coeffecient"}
@@ -74,7 +76,7 @@
         lfo-tap         (tap :lfo 10
                              (lag-ud LFO 0 0.9))
         VIBRATO-LFO     (* vibrato-amp (sin-osc vibrato-rate))
-        input-note-freq (midicps note)
+        input-note-freq (midicps (+ note (* (lf-pulse vibrato-rate) vibrato-trill)))
         glide-rate      (/ input-note-freq portamento)
         note-freq       (slew (+ (* input-note-freq bend) (* lfo2pitch LFO)), glide-rate, glide-rate)
         sub-note-freq   (* note-freq sub-osc-coeff)
