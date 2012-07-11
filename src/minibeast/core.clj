@@ -706,23 +706,23 @@
 
 (defn register-midi-handlers
   []
-  (on-event [:midi :note-on]
-            (fn [{note :note velocity :velocity}]
-              (keydown note (/ velocity 127.0)))
-            ::note-on-handler)
+  (on-sync-event [:midi :note-on]
+                 (fn [{note :note velocity :velocity}]
+                   (keydown note (/ velocity 127.0)))
+                 ::note-on-handler)
 
-  (on-event [:midi :note-off]
-            (fn [{note :note}]
-              (keyup note))
-            ::note-off-handler)
+  (on-sync-event [:midi :note-off]
+                 (fn [{note :note}]
+                   (keyup note))
+                 ::note-off-handler)
 
-  (on-event [:midi :control-change]
-            handle-control
-            ::ctl-event-handler)
+  (on-sync-event [:midi :control-change]
+                 handle-control
+                 ::ctl-event-handler)
 
-  (on-event [:midi :pitch-bend]
-            handle-control
-            ::bend-event-handler))
+  (on-sync-event [:midi :pitch-bend]
+                 handle-control
+                 ::bend-event-handler))
 
 (defn start-gui
   []
