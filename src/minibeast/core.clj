@@ -32,9 +32,10 @@
                   mod-wheel-fn
                   mod-wheel-pos
                   vibrato-fn
-                  arp-on])
+                  arp-mode
+                  arp-range])
 
-(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :cutoff 0.0 :vibrato false)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :cutoff 0.0 :vibrato 0 2)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
@@ -408,6 +409,8 @@
          (Control. 810 265 :slider {:caption "Decay"}                   :amp-decay         (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
          (Control. 850 265 :slider {:caption "Sustain"}                 :amp-sustain       (fn [val] (/ val 127.0)))
          (Control. 890 265 :slider {:caption "Release"}                 :amp-release       (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+
+         (Control. 885 332 :knob {:caption "Tempo"}                     :arp-rate          (fn [val] (/ val 5.0)))
          ]) [
              ;; Put advanced controls here [x y synth-fn ui-fn]
              ;; LFO waveform selector
@@ -522,7 +525,35 @@
                                                    [[(:lfo-waveform @synth-state) (/ val 127.0)]])))
                           (fn [val] val))
 
+        ;; Arp mode selector
+        (AdvancedControl. 751 398 :knob {:caption "Mode"} :arp-mode
+                          (fn [val] (let [old-mode    (:arp-mode @synth-state)
+                                          new-state   (alter-state
+                                                       #(assoc % :arp-mode
+                                                               (if (= val 0)
+                                                                 ;; button press; switch to next mode
+                                                                 (mod (inc old-mode) 5)
+                                                                 ;; knob or slider; calculate mote
+                                                                 (int (* (/ (inc val) 129.0) 5)))))
+                                         new-mode (:arp-mode new-state)]
+                                     [[:arp-mode new-mode]]))
+                          (fn [val] (case (:arp-mode @synth-state)
+                                     0 65 1 75 2 85 3 102 4 115)))
 
+        ;; Arp range selector
+        (AdvancedControl. 681 398 :knob {:caption "Octave"} :arp-range
+                          (fn [val] (let [old-range (:arp-range @synth-state)
+                                          new-state (alter-state
+                                                      #(assoc % :arp-range
+                                                              (if (= val 0)
+                                                                ;; button press; switch to next range
+                                                                (inc (mod old-range 4))
+                                                                ;; knob or slider; calculate range
+                                                                (inc (int (* (/ (inc val) 129.0) 4))))))
+                                         new-range  (:arp-range new-state)]
+                                     [[:arp-range new-range]]))
+                          (fn [val] (case (:arp-range @synth-state)
+                                     1 65 2 75 3 89 4 100)))
 
         ]))
 

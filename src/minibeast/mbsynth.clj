@@ -54,6 +54,9 @@
    reverb-size       {:default 0.3    :doc "reverb room size"}
    reverb-damp       {:default 0.8    :doc "reverb dampening"}
    feedback-amp      {:default 0.0    :doc "feedback amount"}
+   arp-rate          {:default 2.0    :doc "Rate of arpeggiation in Hz"}
+   arp-range         {:default 2      :doc "Octave range of arpeggiation"}
+   arp-mode          {:default 0      :doc "0 = off, 1 = up, 2 = down, 3 = up/down, 4 = random"}
    ]
   (let [AMP-ADSR        (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate)
         amp-adsr-tap    (tap :amp-adsr 10
@@ -76,7 +79,19 @@
         lfo-tap         (tap :lfo 10
                              (lag-ud LFO 0 0.9))
         VIBRATO-LFO     (* vibrato-amp (sin-osc vibrato-rate))
-        input-note-freq (midicps (+ note (* (lf-pulse vibrato-rate) vibrato-trill)))
+        arp-scale-up    (dseries 0                (dseq [ 7  5] INF) (mul-add arp-range 2 1))
+        arp-scale-down  (dseries (* 12 arp-range) (dseq [-5 -7] INF) (mul-add arp-range 2 1))
+        arp-notes       (dswitch1 [(donce  0)
+                                   (dseq  arp-scale-up INF)
+                                   (dseq  arp-scale-down INF)
+                                   ;; notes at the top and bottom repeat. May be due to
+                                   ;; http://goo.gl/iGVJb
+                                   (dswitch [(dser arp-scale-up   (* 2 arp-range))
+                                             (dser arp-scale-down (* 2 arp-range))] (dseq [0 1] INF))
+                                   (dshuf arp-scale-up INF)] arp-mode)
+        input-note-freq (midicps (+ note
+                                    (* (lf-pulse vibrato-rate) vibrato-trill)
+                                    (demand (impulse arp-rate) 0 arp-notes INF)))
         glide-rate      (/ input-note-freq portamento)
         note-freq       (slew (+ (* input-note-freq bend) (* lfo2pitch LFO)), glide-rate, glide-rate)
         sub-note-freq   (* note-freq sub-osc-coeff)
