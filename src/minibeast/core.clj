@@ -410,7 +410,8 @@
          (Control. 850 265 :slider {:caption "Sustain"}                 :amp-sustain       (fn [val] (/ val 127.0)))
          (Control. 890 265 :slider {:caption "Release"}                 :amp-release       (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
 
-         (Control. 885 332 :knob {:caption "Tempo"}                     :arp-rate          (fn [val] (/ val 5.0)))
+         (Control. 885 332 :knob (mk-pos-only-knob "Tempo")             :arp-rate          (fn [val] (/ val 5.0)))
+         (Control. 825 398 :knob (mk-pos-only-knob "Swing")             :arp-swing-phase   (fn [val] (* 360 (/ val 127.0))))
          ]) [
              ;; Put advanced controls here [x y synth-fn ui-fn]
              ;; LFO waveform selector

@@ -57,6 +57,7 @@
    arp-rate          {:default 2.0    :doc "Rate of arpeggiation in Hz"}
    arp-range         {:default 2      :doc "Octave range of arpeggiation"}
    arp-mode          {:default 0      :doc "0 = off, 1 = up, 2 = down, 3 = up/down, 4 = random"}
+   arp-swing-phase   {:default 0      :doc "phase offset of swung (swinged?) notes. Degrees."}
    ]
   (let [AMP-ADSR        (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate)
         amp-adsr-tap    (tap :amp-adsr 10
@@ -91,7 +92,9 @@
                                    (dshuf arp-scale-up INF)] arp-mode)
         input-note-freq (midicps (+ note
                                     (* (lf-pulse vibrato-rate) vibrato-trill)
-                                    (demand (impulse arp-rate) 0 arp-notes INF)))
+                                    (demand (+ (impulse (/ arp-rate 2))
+                                               (impulse (/ arp-rate 2) (mul-add arp-swing-phase (/ 1 360.0)  0.5)))
+                                            0 arp-notes INF)))
         glide-rate      (/ input-note-freq portamento)
         note-freq       (slew (+ (* input-note-freq bend) (* lfo2pitch LFO)), glide-rate, glide-rate)
         sub-note-freq   (* note-freq sub-osc-coeff)
