@@ -59,10 +59,14 @@
    arp-mode          {:default 0      :doc "0 = off, 1 = up, 2 = down, 3 = up/down, 4 = random"}
    arp-swing-phase   {:default 0      :doc "phase offset of swung (swinged?) notes. Degrees."}
    ]
-  (let [AMP-ADSR        (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate)
+  (let [arp-trig        (+ (impulse (/ arp-rate 2))
+                           (impulse (/ arp-rate 2) (mul-add arp-swing-phase (/ 1 360.0)  0.5)))
+        arp-tap         (tap :arp 10 (lag-ud arp-trig 0 0.9))
+        gate-with-arp   (- gate (* (min arp-mode 1) arp-trig))
+        AMP-ADSR        (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate-with-arp)
         amp-adsr-tap    (tap :amp-adsr 10
                              AMP-ADSR)
-        FILTER-ADSR     (env-gen (adsr filter-attack filter-decay filter-sustain filter-release) gate)
+        FILTER-ADSR     (env-gen (adsr filter-attack filter-decay filter-sustain filter-release) gate-with-arp)
         filter-adsr-tap (tap :filter-adsr 10
                              FILTER-ADSR)
         LFO             (+ (* lfo-sin
@@ -90,11 +94,10 @@
                                    (dswitch [(dser arp-scale-up   (* 2 arp-range))
                                              (dser arp-scale-down (* 2 arp-range))] (dseq [0 1] INF))
                                    (dshuf arp-scale-up INF)] arp-mode)
+        
         input-note-freq (midicps (+ note
                                     (* (lf-pulse vibrato-rate) vibrato-trill)
-                                    (demand (+ (impulse (/ arp-rate 2))
-                                               (impulse (/ arp-rate 2) (mul-add arp-swing-phase (/ 1 360.0)  0.5)))
-                                            0 arp-notes INF)))
+                                    (demand arp-trig 0 arp-notes INF)))
         glide-rate      (/ input-note-freq portamento)
         note-freq       (slew (+ (* input-note-freq bend) (* lfo2pitch LFO)), glide-rate, glide-rate)
         sub-note-freq   (* note-freq sub-osc-coeff)

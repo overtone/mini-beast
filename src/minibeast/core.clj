@@ -410,7 +410,9 @@
          (Control. 850 265 :slider {:caption "Sustain"}                 :amp-sustain       (fn [val] (/ val 127.0)))
          (Control. 890 265 :slider {:caption "Release"}                 :amp-release       (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
 
-         (Control. 885 332 :knob (mk-pos-only-knob "Tempo")             :arp-rate          (fn [val] (/ val 5.0)))
+         (Control. 885 332 :knob (mk-pos-only-knob "Tempo")             :arp-rate          (fn [val] (let [rate (/ val 5.0)]
+                                                                                                       (println "arp-rate " (* (/ 60 8) rate) " bmp")
+                                                                                                       rate)))
          (Control. 825 398 :knob (mk-pos-only-knob "Swing")             :arp-swing-phase   (fn [val] (* 360 (/ val 127.0))))
          ]) [
              ;; Put advanced controls here [x y synth-fn ui-fn]
@@ -588,6 +590,7 @@
     (reset! ui-state {})
     (reset-synth-defaults mbsynth)
     (doall (map (fn [[k v]]
+                  (println "Setting " k)
                   (let [control   (ctl->control k)
                         synth-val ((:synth-fn control) v)]
                     (ctl-ui-and-synth synth-val (:name control) v))) patch))
@@ -665,6 +668,8 @@
           amp-tint    (color 0 255 0 (* 255 amp))
           fil         (apply max (map (fn [s] @(-> s :taps :filter-adsr)) synths))
           filter-tint (color 0 255 0 (* 255 fil))
+          arp         @(-> synths (nth 0) :taps :arp)
+          arp-tint    (color 255 0 0 (* 255 arp))
           off-tint    (color 65 65 65 255)
           draw-led    (fn [x y t]
                         (tint off-tint)
@@ -675,7 +680,8 @@
       (doall (map (partial apply draw-led)
                   [[590 388 lfo-tint]
                    [705 170 filter-tint]
-                   [910 170 amp-tint]]))
+                   [910 170 amp-tint]
+                   [898 388 arp-tint]]))
       (tint (color 255 255 255 255)))))
 
 (defn closest-control
