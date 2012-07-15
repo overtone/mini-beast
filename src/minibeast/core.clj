@@ -684,18 +684,38 @@
                    [898 388 arp-tint]]))
       (tint (color 255 255 255 255)))))
 
-(defn closest-control
-  "return the closest control to [x y]"
+(defn in-box?
+  "is point [x y] inside the box bounded by [u v] [s t]?
+  [u v]
+    +---------+
+    |         |
+    | + [x y] |
+    |         |
+    +---------+ 
+             [s t]"
+  [x y u v s t]
+  (and (> x u)
+       (> y v)
+       (< x s)
+       (< y t)))
+
+(defn control-at-xy
+  "Return the first control that occupies the point at (x y).
+  Nil if no control occupies the space."
   [x y]
-  ;; sort controls by distance ascending and choose the first.
-  (first (sort-by #(+ (Math/pow (- x (+ (:x %) 25)) 2)
-                      (Math/pow (- y (+ (:y %) 25)) 2)) controls)))
+  (first (filter (fn [c] (case (:type c)
+                           :knob     (< (dist x y (+ (:x c) 25) (+ (:y c) 25)) 30)
+                           :slider   (in-box? x y (:x c) (- (:y c) 70) (+ (:x c) 26) (+ (:y c) 31))
+                           :selector (in-box? x y (:x c) (:y c) (+ (:x c) 14) (+ (:y c) 32))
+                           :wheel    (in-box? x y (:x c) (:y c) (+ (:x c) 25) (+ (:y c) 137))))
+                 controls)))
+
 (defn mouse-clicked []
   ;; toggle selected-control on mouse click
   (if (nil? @selected-control)
     (let [x (mouse-x)
           y (mouse-y)
-          c (closest-control x y) ]
+          c (control-at-xy x y) ]
       (println "click at [" x ", " y "]")
       (reset! selected-control c))
     (reset! selected-control nil)))
@@ -705,7 +725,7 @@
   (let [x            (mouse-x)
         y            (mouse-y)
         c            (if (nil? @dragged-control)
-                       (reset! dragged-control (closest-control x y))
+                       (reset! dragged-control (control-at-xy x y))
                        @dragged-control)
         ;; move sliders 1-to-1 with the ui (* 1/0.6)
         ;; move selectors at an increased rate (2x)
