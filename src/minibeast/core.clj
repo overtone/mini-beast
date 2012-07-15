@@ -53,6 +53,7 @@
 (defonce selected-control           (atom nil))
 (defonce dragged-control            (atom nil))
 (defonce dev-chan-note-cmd->control (atom {}))
+(defonce mouse-pressed-note         (atom nil))
 
 ;; Keep a record of the last eight key presses
 ;; in a map of {:synth s, :note n}
@@ -699,6 +700,45 @@
        (< x s)
        (< y t)))
 
+(defn key-note-at-xy
+  "Return the note of the key that occupies the point at (x y).
+  Nil if no key occupies the space."
+  [x y]
+  (let [keys-map [;; black keys
+                  {:coords [101 472 136 700] :note :C#3}
+                  {:coords [172 472 201 700] :note :D#3}
+
+                  {:coords [282 472 316 700] :note :F#3}
+                  {:coords [349 472 382 700] :note :G#3}
+                  {:coords [416 472 452 700] :note :A#3}
+
+                  {:coords [524 472 559 700] :note :C#4}
+                  {:coords [596 472 634 700] :note :D#4}
+
+                  {:coords [704 472 744 700] :note :F#4}
+                  {:coords [774 472 806 700] :note :G#4}
+                  {:coords [841 472 875 700] :note :A#4}
+
+                  ;; white keys
+                  {:coords [ 65 472 124 824] :note :C3}
+                  {:coords [124 472 184 824] :note :D3}
+                  {:coords [184 472 246 824] :note :E3}
+                  {:coords [246 472 303 824] :note :F3}
+                  {:coords [303 472 366 824] :note :G3}
+                  {:coords [366 472 430 824] :note :A3}
+                  {:coords [430 472 490 824] :note :B3}
+                  {:coords [490 472 549 824] :note :C4}
+                  {:coords [549 472 610 824] :note :D4}
+                  {:coords [610 472 669 824] :note :E4}
+                  {:coords [669 472 728 824] :note :F4}
+                  {:coords [728 472 791 824] :note :G4}
+                  {:coords [791 472 852 824] :note :A4}
+                  {:coords [852 472 910 824] :note :B4}
+                  {:coords [910 472 972 824] :note :C5}]]
+    (if-let [k (first (filter (fn [k] (apply in-box? x y (:coords k))) keys-map))]
+      (note (:note k))
+      nil)))
+
 (defn control-at-xy
   "Return the first control that occupies the point at (x y).
   Nil if no control occupies the space."
@@ -723,29 +763,38 @@
 (defn mouse-dragged []
   "For dragging controls around using mouse"
   (let [x            (mouse-x)
-        y            (mouse-y)
-        c            (if (nil? @dragged-control)
-                       (reset! dragged-control (control-at-xy x y))
-                       @dragged-control)
+        y            (mouse-y)]
+    (when-let [c (if (nil? @dragged-control)
+                   (reset! dragged-control (control-at-xy x y))
+                   @dragged-control)]
         ;; move sliders 1-to-1 with the ui (* 1/0.6)
         ;; move selectors at an increased rate (2x)
-        dy           (* (case (:type c)
-                          :slider (/ 1.0 0.6)
-                          :selector 2.0
-                          1.0)
-                        (- y (pmouse-y)))
-        control-name (:name c)
-        last-val     (or (get @ui-state control-name) 0)
-        ;; constrain new-val to 0-127.0
-        new-val      (constrain (- last-val dy) 0.0 127.0)
-        synth-ctls   ((:synth-fn c) new-val)
-        ui-val       ((:ui-fn c) new-val)]
-    (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctls " ui-val " ui-val)
-    (ctl-ui-and-synth synth-ctls control-name ui-val)))
+      (let [dy           (* (case (:type c)
+                              :slider (/ 1.0 0.6)
+                              :selector 2.0
+                              1.0)
+                            (- y (pmouse-y)))
+            control-name (:name c)
+            last-val     (or (get @ui-state control-name) 0)
+            ;; constrain new-val to 0-127.0
+            new-val      (constrain (- last-val dy) 0.0 127.0)
+            synth-ctls   ((:synth-fn c) new-val)
+            ui-val       ((:ui-fn c) new-val)]
+        (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctls " ui-val " ui-val)
+        (ctl-ui-and-synth synth-ctls control-name ui-val)))))
 
-;; stop dragging
+;; keyboard key press using mouse
+(defn mouse-pressed []
+  (when-let [note (key-note-at-xy (mouse-x) (mouse-y))]
+    (println "Playing " (find-note-name note))
+    (reset! mouse-pressed-note note)
+    (keydown note 1.0)))
+
+;; stop dragging & keyup if over key
 (defn mouse-released []
-  (reset! dragged-control nil))
+  (reset! dragged-control nil)
+  (when-let [note @mouse-pressed-note]
+    (keyup note)))
 
 (defn key-code->note [key-code]
   (get ;; Row one
@@ -837,6 +886,7 @@
                   :draw draw
                   :mouse-clicked mouse-clicked
                   :mouse-dragged mouse-dragged
+                  :mouse-pressed mouse-pressed
                   :mouse-released mouse-released
                   :key-pressed key-pressed
                   :key-released key-released
