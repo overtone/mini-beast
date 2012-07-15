@@ -223,6 +223,15 @@
 
 (def selected-tint [255 100 100])
 
+(defn draw-key [x y key-color selected?]
+  (if selected?
+    (apply tint selected-tint)
+    (tint (color 255 255 255 255)))
+  (image (case key-color
+           :white (state :white-key-img)
+           :black (state :black-key-img))
+        x y))
+
 (defn draw-knob [x y amount selected? pos-indicator? start-sym end-sym
                  sym-dx sym-dy zero? caption caption-dx caption-dy]
   (let-transformation
@@ -563,6 +572,39 @@
 
 (def ctl->control (into {} (map (fn [e] {(:name e) e}) controls)))
 
+(def ui-keys
+  [;; black keys
+   {:color :black :coords [101 472 136 700] :note :C#3}
+   {:color :black :coords [172 472 201 700] :note :D#3}
+
+   {:color :black :coords [282 472 316 700] :note :F#3}
+   {:color :black :coords [349 472 382 700] :note :G#3}
+   {:color :black :coords [416 472 452 700] :note :A#3}
+
+   {:color :black :coords [524 472 559 700] :note :C#4}
+   {:color :black :coords [596 472 634 700] :note :D#4}
+
+   {:color :black :coords [704 472 744 700] :note :F#4}
+   {:color :black :coords [774 472 806 700] :note :G#4}
+   {:color :black :coords [841 472 875 700] :note :A#4}
+
+   ;; white keys
+   {:color :white :coords [ 65 472 124 824] :note :C3}
+   {:color :white :coords [124 472 184 824] :note :D3}
+   {:color :white :coords [184 472 246 824] :note :E3}
+   {:color :white :coords [246 472 303 824] :note :F3}
+   {:color :white :coords [303 472 366 824] :note :G3}
+   {:color :white :coords [366 472 430 824] :note :A3}
+   {:color :white :coords [430 472 490 824] :note :B3}
+   {:color :white :coords [490 472 549 824] :note :C4}
+   {:color :white :coords [549 472 610 824] :note :D4}
+   {:color :white :coords [610 472 669 824] :note :E4}
+   {:color :white :coords [669 472 728 824] :note :F4}
+   {:color :white :coords [728 472 791 824] :note :G4}
+   {:color :white :coords [791 472 852 824] :note :A4}
+   {:color :white :coords [852 472 910 824] :note :B4}
+   {:color :white :coords [910 472 972 824] :note :C5}])
+
 (defn apply-control-map-from-file []
   (let [extFilter   (FileNameExtensionFilter. "Bindings (*.ctl)" (into-array  ["ctl"]))
         filechooser (doto (JFileChooser. "./presets")
@@ -642,6 +684,8 @@
               :wheel-dimple-img            (load-image "wheel-dimple.png")
               :wheel-dimple-inv-img        (load-image "wheel-dimple-inv.png")
               :wheel-dimple-background-img (load-image "wheel-dimple-background.png")
+              :white-key-img               (load-image "white-key.png")
+              :black-key-img               (load-image "black-key.png")
               :led-img                     (load-image "led.png")
               :led-background-img          (load-image "led-background.png")
               :overtone-circle-img         (load-image "overtone-circle.png")
@@ -683,6 +727,14 @@
                    [705 170 filter-tint]
                    [910 170 amp-tint]
                    [898 388 arp-tint]]))
+      (tint (color 255 255 255 255))
+      (doall (map (fn [k] (draw-key (first (:coords k))
+                                    (second (:coords k))
+                                    (:color k)
+                                    (some (fn [v] (= (:note v) (note (:note k)))) @voices)))
+                  (sort-by (fn [k] (case (:color k)
+                                           :white 0
+                                           :black 1)) ui-keys)))
       (tint (color 255 255 255 255)))))
 
 (defn in-box?
@@ -700,44 +752,15 @@
        (< x s)
        (< y t)))
 
+
+
 (defn key-note-at-xy
   "Return the note of the key that occupies the point at (x y).
   Nil if no key occupies the space."
   [x y]
-  (let [keys-map [;; black keys
-                  {:coords [101 472 136 700] :note :C#3}
-                  {:coords [172 472 201 700] :note :D#3}
-
-                  {:coords [282 472 316 700] :note :F#3}
-                  {:coords [349 472 382 700] :note :G#3}
-                  {:coords [416 472 452 700] :note :A#3}
-
-                  {:coords [524 472 559 700] :note :C#4}
-                  {:coords [596 472 634 700] :note :D#4}
-
-                  {:coords [704 472 744 700] :note :F#4}
-                  {:coords [774 472 806 700] :note :G#4}
-                  {:coords [841 472 875 700] :note :A#4}
-
-                  ;; white keys
-                  {:coords [ 65 472 124 824] :note :C3}
-                  {:coords [124 472 184 824] :note :D3}
-                  {:coords [184 472 246 824] :note :E3}
-                  {:coords [246 472 303 824] :note :F3}
-                  {:coords [303 472 366 824] :note :G3}
-                  {:coords [366 472 430 824] :note :A3}
-                  {:coords [430 472 490 824] :note :B3}
-                  {:coords [490 472 549 824] :note :C4}
-                  {:coords [549 472 610 824] :note :D4}
-                  {:coords [610 472 669 824] :note :E4}
-                  {:coords [669 472 728 824] :note :F4}
-                  {:coords [728 472 791 824] :note :G4}
-                  {:coords [791 472 852 824] :note :A4}
-                  {:coords [852 472 910 824] :note :B4}
-                  {:coords [910 472 972 824] :note :C5}]]
-    (if-let [k (first (filter (fn [k] (apply in-box? x y (:coords k))) keys-map))]
-      (note (:note k))
-      nil)))
+  (if-let [k (first (filter (fn [k] (apply in-box? x y (:coords k))) ui-keys))]
+    (note (:note k))
+    nil))
 
 (defn control-at-xy
   "Return the first control that occupies the point at (x y).
@@ -798,7 +821,6 @@
 
 (defn key-code->note [key-code]
   (get ;; Row one
-
    {\q (note :C3)
     \2 (note :C#3)
     \w (note :D3)
