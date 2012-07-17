@@ -5,6 +5,5 @@ pom.xml
 .lein-deps-sum
 /data/*xcf
 /data/*jpg
-/data/*svg
 target
 .DS_store

@@ -283,13 +283,19 @@
     (image slider-img x (+ y (* -0.6  amount)))
     (tint 255 255 255)))
 
-(defn draw-selector [x y pos selected?]
+(defn draw-selector [x y pos selected? caption caption-dx caption-dy]
   "x: x position
      y: y position
      pos: y position offet"
   (let [selector-background-img (state :selector-background-img)
         selector-img            (state :selector-img) ]
     (image selector-background-img (+ x 1) (+ y 3))
+    (if-not (nil? caption)
+      (let [cdx (or caption-dx 0)
+            cdy (or caption-dy 0)]
+        (text-size 8)
+        (text-align :center)
+        (text caption (+ 10 cdx x) (+ y cdy 44))))
     (if selected?
       (apply tint selected-tint))
     (image selector-img x (+ y pos))
@@ -335,8 +341,10 @@
                                     ((juxt :pos-indicator? :start-sym :end-sym :sym-dx :sym-dy
                                            :zero? :caption :caption-dx :caption-dy) ui-hints)))
       :slider (apply draw-slider (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
-      :selector (apply draw-selector args)
-      :wheel (apply draw-wheel (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints))))))
+      :selector (apply draw-selector (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
+      :wheel (apply draw-wheel (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints))))
+    (when-let [ui-aux-fn (-> control :ui-hints :ui-aux-fn )]
+      (ui-aux-fn))))
 
 (defn control->advanced-control [control]
   ;; [x y type ui-hints name synth-fn ui-fn]
@@ -423,11 +431,19 @@
          (Control. 885 332 :knob (mk-pos-only-knob "Tempo")             :arp-rate          (fn [val] (let [rate (/ val 5.0)]
                                                                                                        (println "arp-rate " (* (/ 60 8) rate) " bmp")
                                                                                                        rate)))
-         (Control. 825 398 :knob (mk-pos-only-knob "Swing")             :arp-swing-phase   (fn [val] (* 360 (/ val 127.0))))
+         (Control. 829 398 :knob (mk-pos-only-knob "Swing")             :arp-swing-phase   (fn [val] (* 360 (/ val 127.0))))
          ]) [
-             ;; Put advanced controls here [x y synth-fn ui-fn]
-             ;; LFO waveform selector
-        (AdvancedControl. 478 398 :knob {:caption "Wave"} :lfo-waveform
+
+        ;; Put advanced controls here [x y synth-fn ui-fn]
+        ;; LFO waveform selector
+        (AdvancedControl. 478 398 :knob {:caption   "Wave"
+                                         :ui-aux-fn (fn [] (shape (state :sin-shape) 495 390)
+                                                           (shape (state :tri-shape) 510 392)
+                                                           (shape (state :saw-shape) 519 402)
+                                                           (shape (state :square-shape) 526 417)
+                                                           (shape (state :random-shape) 524 429)
+                                                           (shape (state :random-slew-shape) 513 440))}
+                          :lfo-waveform
                           (fn [val] (let [old-waveform (:lfo-waveform @synth-state)
                                          new-state    (alter-state
                                                        #(assoc % :lfo-waveform
@@ -443,7 +459,10 @@
                                      :lfo-sin 60 :lfo-tri 75 :lfo-saw 89 :lfo-square 100 :lfo-rand 115 :lfo-slew-rand 130)))
 
         ;; sub-octave osc waveform selector
-        (AdvancedControl. 290 46 :selector {} :sub-osc-waveform
+        (AdvancedControl. 290 46 :selector {:caption   "WAVE"
+                                            :ui-aux-fn (fn [] (shape (state :square-shape) 310 51)
+                                                              (shape (state :sin-shape)    310 65))}
+                          :sub-osc-waveform
                           (fn [val] (let [old-waveform (:sub-osc-waveform @synth-state)
                                          new-state    (alter-state
                                                        #(assoc % :sub-osc-waveform
@@ -458,7 +477,10 @@
                           (fn [val] (case (:sub-osc-waveform @synth-state)
                                      :sub-osc-square 0 :sub-osc-sin 16 -10)))
         ;; sub-osc octave selector
-        (AdvancedControl. 290 106 :selector {} :sub-osc-oct
+        (AdvancedControl. 290 106 :selector {:caption   "OCTAVE"
+                                             :ui-aux-fn (fn [] (text "-1" 315 119)
+                                                               (text "-2" 315 135))}
+                          :sub-osc-oct
                           (fn [val] (let [old-oct   (:sub-osc-oct @synth-state)
                                          new-state (alter-state
                                                     #(assoc % :sub-osc-oct
@@ -484,7 +506,11 @@
                           (fn [val] (* 127.0 (:sub-osc-amp @synth-state))))
 
         ;; Mod wheel function
-        (AdvancedControl. 283 335 :selector {} :mod-wheel-fn
+        (AdvancedControl. 283 335 :selector {:caption   "MOD Wheel"
+                                             :ui-aux-fn (fn [] (text "Cutoff"  315 348)
+                                                               (text "Vibrato" 315 358)
+                                                               (text "LFOAmt"  315 368))}
+                          :mod-wheel-fn
                           (fn [val] (let [old-fn   (:mod-wheel-fn @synth-state)
                                          new-state (alter-state
                                                    #(assoc % :mod-wheel-fn
@@ -499,7 +525,10 @@
                                      :cutoff 0 :vibrato 10 :lfo-amount 20)))
 
         ;; Vibrato type selector
-        (AdvancedControl. 424 338 :selector {} :vibrato-fn
+        (AdvancedControl. 424 338 :selector {:ui-aux-fn (fn [] (shape (state :trill-up-shape)   445 345)
+                                                               (shape (state :sin-shape)        445 355)
+                                                               (shape (state :trill-down-shape) 445 365))}
+                          :vibrato-fn
                           (fn [val] (let [old-fn    (:vibrato-fn @synth-state)
                                           new-state (alter-state
                                                       #(assoc % :vibrato-fn
@@ -539,7 +568,13 @@
                           (fn [val] val))
 
         ;; Arp mode selector
-        (AdvancedControl. 751 398 :knob {:caption "Mode"} :arp-mode
+        (AdvancedControl. 751 398 :knob {:caption   "Mode"
+                                         :ui-aux-fn (fn [] (text "Off"    776 396)
+                                                           (text "Up"     791 398)
+                                                           (text "Down"   806 409)
+                                                           (text "Up/Dwn" 813 422)
+                                                           (text "Rand"   808 435))}
+                          :arp-mode
                           (fn [val] (let [old-mode    (:arp-mode @synth-state)
                                           new-state   (alter-state
                                                        #(assoc % :arp-mode
@@ -554,7 +589,12 @@
                                      0 65 1 75 2 85 3 102 4 115)))
 
         ;; Arp range selector
-        (AdvancedControl. 681 398 :knob {:caption "Octave"} :arp-range
+        (AdvancedControl. 681 398 :knob {:caption   "Octave"
+                                         :ui-aux-fn (fn [] (text "1" 706 397)
+                                                           (text "2" 718 400)
+                                                           (text "3" 730 410)
+                                                           (text "4" 734 422))}
+                          :arp-range
                           (fn [val] (let [old-range (:arp-range @synth-state)
                                           new-state (alter-state
                                                       #(assoc % :arp-range
@@ -690,7 +730,15 @@
               :led-background-img          (load-image "led-background.png")
               :overtone-circle-img         (load-image "overtone-circle.png")
               :overtone-text-img           (load-image "overtone-text.png")
-              :mini-beast-text-img         (load-image "mini-beast-text.png")))
+              :mini-beast-text-img         (load-image "mini-beast-text.png")
+              :random-slew-shape           (load-shape "random-slew.svg")
+              :random-shape                (load-shape "random.svg")
+              :sin-shape                   (load-shape "sin.svg")
+              :square-shape                (load-shape "square.svg")
+              :tri-shape                   (load-shape "tri.svg")
+              :saw-shape                   (load-shape "saw.svg")
+              :trill-down-shape            (load-shape "trill-down.svg")
+              :trill-up-shape              (load-shape "trill-up.svg")))
 
 (defn draw []
   (let [background-img      (state :background-img)
