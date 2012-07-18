@@ -374,6 +374,15 @@
   (mk-ui-hint-builder
    {:pos-indicator? true :start-sym "-" :end-sym "+" :zero? true}))
 
+
+(defn selector-knob-label-pos
+  "Return [x y] position of label for selector knob.
+  x,y - position of knob.
+  i - index of label. 0...n-1"
+  [x y i]
+  [(+ x 20 (* -29 (Math/cos (+ (/ i 2.0) 1.5))))
+   (+ y 22 (* -27 (Math/sin (+ (/ i 2.0) 1.5))))])
+
 (def controls
   (concat
    (map control->advanced-control
@@ -437,12 +446,13 @@
         ;; Put advanced controls here [x y synth-fn ui-fn]
         ;; LFO waveform selector
         (AdvancedControl. 478 398 :knob {:caption   "Wave"
-                                         :ui-aux-fn (fn [] (shape (state :sin-shape) 495 390)
-                                                           (shape (state :tri-shape) 510 392)
-                                                           (shape (state :saw-shape) 519 402)
-                                                           (shape (state :square-shape) 526 417)
-                                                           (shape (state :random-shape) 524 429)
-                                                           (shape (state :random-slew-shape) 513 440))}
+                                         :ui-aux-fn #(doall
+                                                       (map-indexed
+                                                         (fn [i e] (apply shape 
+                                                                          (state e)
+                                                                          (selector-knob-label-pos 478 398 i)))
+                                                         [:sin-shape :tri-shape :saw-shape :square-shape
+                                                          :random-shape :random-slew-shape]))}
                           :lfo-waveform
                           (fn [val] (let [old-waveform (:lfo-waveform @synth-state)
                                          new-state    (alter-state
@@ -569,11 +579,13 @@
 
         ;; Arp mode selector
         (AdvancedControl. 751 398 :knob {:caption   "Mode"
-                                         :ui-aux-fn (fn [] (text "Off"    776 396)
-                                                           (text "Up"     791 398)
-                                                           (text "Down"   806 409)
-                                                           (text "Up/Dwn" 813 422)
-                                                           (text "Rand"   808 435))}
+                                         :ui-aux-fn #(do
+                                                       (text-align :left)
+                                                       (doall
+                                                         (map-indexed
+                                                           (fn [i e](apply text e (selector-knob-label-pos 752 400 i)))
+                                                           ["Off" "Up" "Down" "Up/Dwn" "Rand"]))
+                                                       (text-align :center))}
                           :arp-mode
                           (fn [val] (let [old-mode    (:arp-mode @synth-state)
                                           new-state   (alter-state
@@ -586,14 +598,14 @@
                                          new-mode (:arp-mode new-state)]
                                      [[:arp-mode new-mode]]))
                           (fn [val] (case (:arp-mode @synth-state)
-                                     0 65 1 75 2 85 3 102 4 115)))
+                                     0 62 1 75 2 85 3 98 4 109)))
 
         ;; Arp range selector
         (AdvancedControl. 681 398 :knob {:caption   "Octave"
-                                         :ui-aux-fn (fn [] (text "1" 706 397)
-                                                           (text "2" 718 400)
-                                                           (text "3" 730 410)
-                                                           (text "4" 734 422))}
+                                         :ui-aux-fn #(doall
+                                                       (map-indexed
+                                                         (fn [i e](apply text e (selector-knob-label-pos 686 403 i)))
+                                                         ["1" "2" "3" "4"]))}
                           :arp-range
                           (fn [val] (let [old-range (:arp-range @synth-state)
                                           new-state (alter-state
@@ -606,7 +618,7 @@
                                          new-range  (:arp-range new-state)]
                                      [[:arp-range new-range]]))
                           (fn [val] (case (:arp-range @synth-state)
-                                     1 65 2 75 3 89 4 100)))
+                                     1 60 2 75 3 88 4 101)))
 
         ]))
 
