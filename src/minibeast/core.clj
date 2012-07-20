@@ -424,9 +424,13 @@
                                                       :end-sym "200%"
                                                       :sym-dy -5})      :cutoff-tracking   (fn [val] (/ val 64.0)))
 
-         (Control. 130 332 :knob (mk-pos-only-knob "Mix")               :reverb-mix        (fn [val] (/ val 127.0)))
-         (Control. 200 332 :knob (mk-pos-only-knob "Size")              :reverb-size       (fn [val] (/ val 127.0)))
-         (Control. 130 398 :knob (mk-pos-only-knob "Damp")              :reverb-damp       (fn [val] (/ val 127.0)))
+         (Control. 60  332 :knob (mk-pos-only-knob "Level")             :delay-mix         (fn [val] (/ val 127.0)))
+         (Control. 130 332 :knob (mk-pos-only-knob "F.Back")            :delay-feedback    (fn [val] (/ val 127.0)))
+         (Control. 200 332 :knob (mk-pos-only-knob "Time")              :delay-time        (fn [val] (/ val 127.0)))
+
+         (Control. 60  398 :knob (mk-pos-only-knob "Mix")               :reverb-mix        (fn [val] (/ val 127.0)))
+         (Control. 130 398 :knob (mk-pos-only-knob "Size")              :reverb-size       (fn [val] (/ val 127.0)))
+         (Control. 200 398 :knob (mk-pos-only-knob "Damp")              :reverb-damp       (fn [val] (/ val 127.0)))
 
          (Control. 565 265 :slider {:caption "Attack"}                  :filter-attack     (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
          (Control. 605 265 :slider {:caption "Decay"}                   :filter-decay      (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))

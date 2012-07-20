@@ -53,6 +53,9 @@
    reverb-mix        {:default 0.5    :doc "wet-dry mix"}
    reverb-size       {:default 0.3    :doc "reverb room size"}
    reverb-damp       {:default 0.8    :doc "reverb dampening"}
+   delay-mix         {:default 0.5    :doc "wet-dry mix"}
+   delay-feedback    {:default 0.2    :doc "amount of delay to feedback into delay loop. 0..1"}
+   delay-time        {:default 0.8    :doc "delay time in seconds"}
    feedback-amp      {:default 0.0    :doc "feedback amount"}
    arp-rate          {:default 2.0    :doc "Rate of arpeggiation in Hz"}
    arp-range         {:default 2      :doc "Octave range of arpeggiation"}
@@ -117,12 +120,13 @@
         vcf-freq        (+ cutoff (* lfo2filter LFO) (* cutoff-tracking note-freq) (* cutoff-env AMP-ADSR))
         VCF             (moog-ff (+ VCO (* feedback-amp (local-in))) (* FILTER-ADSR vcf-freq) resonance)
         VCA             (+ (* lfo2amp LFO) AMP-ADSR VIBRATO-LFO)
-        OUT             (free-verb (comb-n (softclip (* volume velocity VCA VCF))
-                                           1.0
-                                           0.1
-                                           0.5) reverb-mix reverb-size reverb-damp)
-        _               (local-out OUT)
-        ]
+        mix             (* volume velocity VCA VCF)
+        ;;_               (local-out mix)
+        delay-mix       (softclip (+ mix
+                                     (* delay-mix (local-out (delay-n (+ mix
+                                                                         (* delay-feedback (local-in)))
+                                                                      1.0 delay-time)))))
+        OUT             (free-verb delay-mix reverb-mix reverb-size reverb-damp)]
     (out 0 (pan2 OUT))))
 
 
