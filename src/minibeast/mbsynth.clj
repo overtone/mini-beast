@@ -133,24 +133,3 @@
         ]
     (out 0 (pan2 OUT))))
 
-
-;(defn arp5 [i]
-;  (let [start-note (:note state)
-;        arp-speed (:speed state)
-;        times [1 1 1 1 1 1 1 1 1]
-;        arp-time (nth times (mod i (count times)))]
-;    (println "arp5: speed " arp-speed " i " i)
-;    (if (== i 0)
-;        (ctl synth0 :note start-note))
-;    (apply-at (+ (now) (* arp-time arp-speed))
-;      (fn []
-;        (let [notes [0 7 12 19 24 19 12 7]
-;              note  (+ (:note state) (nth notes (mod i (count notes))))]
-;          (println "arp5 " note)
-;          (ctl synth0 :note note)
-;          (println "arp5-gate-state:" (:gate state))
-;          (if (and (not= 0 (:gate state)) (== (:note state) start-note))
-;              (do (println "recursing")
-;                  (arp5 (inc i)))
-;              (println "arp stop")))))))
-;
