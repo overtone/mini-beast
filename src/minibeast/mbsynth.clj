@@ -53,7 +53,7 @@
    reverb-mix        {:default 0.5    :doc "wet-dry mix"}
    reverb-size       {:default 0.3    :doc "reverb room size"}
    reverb-damp       {:default 0.8    :doc "reverb dampening"}
-   delay-mix         {:default 0.5    :doc "wet-dry mix"}
+   delay-mix         {:default 0.0    :doc "wet-dry mix"}
    delay-feedback    {:default 0.2    :doc "amount of delay to feedback into delay loop. 0..1"}
    delay-time        {:default 0.8    :doc "delay time in seconds"}
    feedback-amp      {:default 0.0    :doc "feedback amount"}
@@ -117,16 +117,20 @@
                            (* osc-noise (white-noise))
                            (* sub-osc-sin (sin-osc sub-note-freq))
                            (* sub-osc-square (square sub-note-freq (* LFO lfo2pwm))))
+        [delay-in
+         fback-in]     (local-in 2)
         vcf-freq        (+ cutoff (* lfo2filter LFO) (* cutoff-tracking note-freq) (* cutoff-env AMP-ADSR))
-        VCF             (moog-ff (+ VCO (* feedback-amp (local-in))) (* FILTER-ADSR vcf-freq) resonance)
+        VCF             (moog-ff (+ VCO (* feedback-amp fback-in)) (* FILTER-ADSR vcf-freq) resonance)
         VCA             (+ (* lfo2amp LFO) AMP-ADSR VIBRATO-LFO)
         mix             (* volume velocity VCA VCF)
-        ;;_               (local-out mix)
+        delay-sig       (delay-n (+ mix
+                                    (* delay-feedback delay-in))
+                                 1.0 delay-time)
         delay-mix       (softclip (+ mix
-                                     (* delay-mix (local-out (delay-n (+ mix
-                                                                         (* delay-feedback (local-in)))
-                                                                      1.0 delay-time)))))
-        OUT             (free-verb delay-mix reverb-mix reverb-size reverb-damp)]
+                                     (* delay-mix delay-sig)))
+        OUT             (free-verb delay-mix reverb-mix reverb-size reverb-damp)
+        lout            (local-out [delay-sig OUT])
+        ]
     (out 0 (pan2 OUT))))
 
 
