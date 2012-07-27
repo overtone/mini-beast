@@ -99,10 +99,6 @@
    feedback-amp      {:default 0.0    :doc "feedback amount"}
    ]
   (let [
-       ; arp-rate        10
-       ; arp-swing-phase 0
-       ; arp-trig        (+ (impulse (/ arp-rate 2))
-       ;                    (impulse (/ arp-rate 2) (+ (* arp-swing-phase (/ 1 360.0))  0.5)))
         arp-trig        (in:kr arp-trig-bus 1)
         arp-notes       (in:kr arp-note-bus 1)
         gate-with-arp   (- gate arp-trig)
