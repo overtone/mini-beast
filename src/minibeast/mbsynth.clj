@@ -49,8 +49,8 @@
                                              (dser arp-scale-down (* 2 arp-range))] (dseq [0 1] INF))
                                    (dshuf arp-scale-up INF)] arp-mode)
         arp-out         (demand arp-trig 0 arp-notes INF)]
-    (out arp-trig-bus (* arp-on? arp-trig))
-    (out arp-note-bus arp-out)))
+    (out:kr arp-trig-bus (* arp-on? arp-trig))
+    (out:kr arp-note-bus arp-out)))
         
 
 (defsynth voice
@@ -99,9 +99,13 @@
    feedback-amp      {:default 0.0    :doc "feedback amount"}
    ]
   (let [
-        arp-trig        (in arp-trig-bus 1)
-        arp-notes       (in arp-note-bus 1)
-        gate-with-arp   (- gate  arp-trig)
+       ; arp-rate        10
+       ; arp-swing-phase 0
+       ; arp-trig        (+ (impulse (/ arp-rate 2))
+       ;                    (impulse (/ arp-rate 2) (+ (* arp-swing-phase (/ 1 360.0))  0.5)))
+        arp-trig        (in:kr arp-trig-bus 1)
+        arp-notes       (in:kr arp-note-bus 1)
+        gate-with-arp   (- gate arp-trig)
         AMP-ADSR        (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate-with-arp)
         amp-adsr-tap    (tap :amp-adsr 10
                              AMP-ADSR)

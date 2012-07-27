@@ -20,20 +20,19 @@
 (def arp-note-bus (control-bus))
 (def voice-bus (audio-bus))
 
-(def arp-synth (darp :position :head (bus-id arp-trig-bus)
-                     (bus-id arp-note-bus)))
+(def arp-synth (darp :position :head arp-trig-bus arp-note-bus))
 (def synth-voices (doall (map (fn [_]
                                 (voice :position :after
                                        :target arp-synth
-                                       (bus-id voice-bus)
-                                       (bus-id lfo-bus)
-                                       (bus-id arp-trig-bus)
-                                       (bus-id arp-note-bus)))
+                                       voice-bus
+                                       lfo-bus
+                                       arp-trig-bus
+                                       arp-note-bus))
                               (range 8))))
 (def lfo-synth (LFO :position :before
                     :target (last synth-voices)
-                    (bus-id lfo-bus)))
-(def mb-synth (mbsynth :position :tail (bus-id voice-bus)))
+                    lfo-bus))
+(def mb-synth (mbsynth :position :tail voice-bus))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Internal synth state
