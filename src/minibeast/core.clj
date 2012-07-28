@@ -46,13 +46,14 @@
                   sub-osc-oct
                   lfo-waveform
                   lfo-amp
+                  filter-type
                   mod-wheel-fn
                   mod-wheel-pos
                   vibrato-fn
                   arp-mode
                   arp-range])
 
-(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :cutoff 0.0 :vibrato 0 2)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :low-pass :cutoff 0.0 :vibrato 0 2)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
@@ -90,10 +91,7 @@
        ui-val       - 0-127 midi velocity"
   [synth synth-ctl synth-val control-name ui-val]
     (update-ui-state {control-name  ui-val})
-    (if (seq? synth)
-      (doall (map #(ctl-ui-and-synth % synth-ctl synth-val control-name ui-val) synth))
-      (do (println "(ctl " (:id synth) " " synth-ctl " " synth-val ")")
-        (ctl synth synth-ctl synth-val))))
+    (ctl synth synth-ctl synth-val))
 
 (def sub-osc-waveforms [:sub-osc-square :sub-osc-sin])
 (defn next-sub-osc-waveform [w]
@@ -106,6 +104,13 @@
   "Given an lfo waveform, return the next waveform that can be selected."
   (let [waveforms (cycle lfo-waveforms )]
     (nth waveforms (inc (.indexOf waveforms w)))))
+
+(def filter-types [:low-pass :band-pass :high-pass :notch])
+(defn next-filter-type [m]
+  "Given a filter, return the next filter that can be selected."
+  (let [modes (cycle filter-types)]
+    (nth modes (inc (.indexOf modes m)))))
+
 
 (def mod-wheel-fns [:cutoff :vibrato :lfo-amount])
 (defn next-mod-wheel-fn [f]
@@ -406,8 +411,8 @@
         [
          (Control. 885 38 :knob (mk-pos-only-knob "Master Volume")      mb-synth     :volume            (fn [val] (/ val 12.0)))
          (Control. 750 38 :knob (mk-pos-only-knob "Feedback Amt")       mb-synth     :feedback-amp      (fn [val] (/ val 127.0)))
-         (Control. 545 35 :knob (mk-pos-only-knob "Cutoff")             mb-synth     :cutoff            (fn [val] (* (- val 10) 100.0)))
-         (Control. 613 35 :knob (mk-pos-only-knob "Resonance")          mb-synth     :resonance         (fn [val] (/ val 32.0)))
+         (Control. 545 35 :knob (mk-pos-only-knob "Cutoff")             synth-voices :cutoff            (fn [val] (* (- val 10) 100.0)))
+         (Control. 613 35 :knob (mk-pos-only-knob "Resonance")          synth-voices :resonance         (fn [val] (/ val 32.0)))
          (Control. 479 35 :knob (mk-pos-only-knob "Tri fold")           synth-voices :tri-fold-thresh   (fn [val] (+ (/ val -127.0) 1)))
          (Control. 341 35 :knob (mk-pos-only-knob "Detune Amt")         synth-voices :saw-detune-amp    (fn [val] (/ val 127.0)))
          (Control. 409 38 :knob (mk-pos-only-knob "Pulse Width"
@@ -429,7 +434,7 @@
 
          (Control. 338 398 :knob (mk-pos-only-knob "Glide")             synth-voices :portamento        (fn [val] (/ val 1270.0)))
          (Control. 408 398 :knob (mk-pos-only-knob "Rate")              synth-voices :vibrato-rate      (fn [val] (/ val 8.0)))
-         (Control. 546 398 :knob (mk-pos-only-knob "Rate")              lfo-synth :lfo-rate
+         (Control. 546 398 :knob (mk-pos-only-knob "Rate")              lfo-synth    :lfo-rate
                    (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 3.0)))
 
          (Control. 341 102 :knob (mk-pos-only-knob   "Detune Rate")     synth-voices :saw-detune        (fn [val] (/ val 8.0)))
@@ -441,13 +446,13 @@
                                                       :end-sym "200%"
                                                       :sym-dy -5})      synth-voices :cutoff-tracking   (fn [val] (/ val 64.0)))
 
-         (Control. 60  332 :knob (mk-pos-only-knob "Level")             mb-synth :delay-mix         (fn [val] (/ val 127.0)))
-         (Control. 130 332 :knob (mk-pos-only-knob "F.Back")            mb-synth :delay-feedback    (fn [val] (/ val 127.0)))
-         (Control. 200 332 :knob (mk-pos-only-knob "Time")              mb-synth :delay-time        (fn [val] (/ val 127.0)))
+         (Control. 60  332 :knob (mk-pos-only-knob "Level")             mb-synth     :delay-mix         (fn [val] (/ val 127.0)))
+         (Control. 130 332 :knob (mk-pos-only-knob "F.Back")            mb-synth     :delay-feedback    (fn [val] (/ val 127.0)))
+         (Control. 200 332 :knob (mk-pos-only-knob "Time")              mb-synth     :delay-time        (fn [val] (/ val 127.0)))
 
-         (Control. 60  398 :knob (mk-pos-only-knob "Mix")               mb-synth :reverb-mix        (fn [val] (/ val 127.0)))
-         (Control. 130 398 :knob (mk-pos-only-knob "Size")              mb-synth :reverb-size       (fn [val] (/ val 127.0)))
-         (Control. 200 398 :knob (mk-pos-only-knob "Damp")              mb-synth :reverb-damp       (fn [val] (/ val 127.0)))
+         (Control. 60  398 :knob (mk-pos-only-knob "Mix")               mb-synth     :reverb-mix        (fn [val] (/ val 127.0)))
+         (Control. 130 398 :knob (mk-pos-only-knob "Size")              mb-synth     :reverb-size       (fn [val] (/ val 127.0)))
+         (Control. 200 398 :knob (mk-pos-only-knob "Damp")              mb-synth     :reverb-damp       (fn [val] (/ val 127.0)))
 
          (Control. 565 265 :slider {:caption "Attack"}                  synth-voices :filter-attack     (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
          (Control. 605 265 :slider {:caption "Decay"}                   synth-voices :filter-decay      (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
@@ -458,14 +463,37 @@
          (Control. 850 265 :slider {:caption "Sustain"}                 synth-voices :amp-sustain       (fn [val] (/ val 127.0)))
          (Control. 890 265 :slider {:caption "Release"}                 synth-voices :amp-release       (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
 
-         (Control. 885 332 :knob (mk-pos-only-knob "Tempo")             arp-synth :arp-rate          (fn [val] (let [rate (/ val 5.0)]
-                                                                                                       (println "arp-rate " (* (/ 60 8) rate) " bmp")
-                                                                                                       rate)))
-         (Control. 829 398 :knob (mk-pos-only-knob "Swing")             arp-synth :arp-swing-phase   (fn [val] (* 360 (/ val 127.0))))
+         (Control. 885 332 :knob (mk-pos-only-knob "Tempo")             arp-synth    :arp-rate          (fn [val] (let [rate (/ val 5.0)]
+                                                                                                                    (println "arp-rate " (* (/ 60 8) rate) " bmp")
+                                                                                                                    rate)))
+         (Control. 829 398 :knob (mk-pos-only-knob "Swing")             arp-synth    :arp-swing-phase   (fn [val] (* 360 (/ val 127.0))))
          ]) [
 
         ;; Put advanced controls here [x y synth-fn ui-fn]
-        ;; LFO waveform selector
+        ;; Filter type knob
+        (AdvancedControl. 670 38 :knob {:caption   "Mode"
+                                         :ui-aux-fn #(do
+                                                       (text-align :left)
+                                                       (doall
+                                                         (map-indexed
+                                                           (fn [i e](apply text e (selector-knob-label-pos 670 38 i)))
+                                                           ["LP" "BP" "HP" "Notch"]))
+                                                       (text-align :center))}
+                          :filter-type
+                          (fn [val] (let [old-mode (:filter-type @synth-state)
+                                         new-state (alter-state
+                                                       #(assoc % :filter-type
+                                                               (if (= val 0)
+                                                                 ;; button press; switch to next mode
+                                                                 (next-filter-type (:filter-type %))
+                                                                 ;; knob or slider; calculate mode
+                                                                 (filter-types (int (* (/ val 128.0) (count filter-types)))))))
+                                         new-mode (:filter-type new-state)]
+                                     ;; Toggle filter mode
+                                     [[synth-voices :filter-type (.indexOf filter-types new-mode)]]))
+                          (fn [val] (case (:filter-type @synth-state)
+                                     :low-pass 60 :band-pass 72 :high-pass 83 :notch 96)))
+        ;; LFO waveform knob
         (AdvancedControl. 478 398 :knob {:caption   "Wave"
                                          :ui-aux-fn #(doall
                                                        (map-indexed
@@ -762,7 +790,7 @@
   ;; load the most bad-est preset possible!
   (load-synth-settings-from-file "./presets/way-huge.patch")
 
-  (ctl (map :id synth-voices) :gate 0)
+  (ctl synth-voices :gate 0)
   (set-state! :background-img              (load-image "background.png")
               :knob-img                    (load-image "knob.png")
               :knob-background-img         (load-image "knob-background.png")
@@ -805,13 +833,13 @@
     (image overtone-text-img 65 20)
     (image mini-beast-text-img 125 50)
     (doall (map draw-control controls))
-    (let [lfo         @(-> lfo-synth :taps :lfo)
+    (let [lfo         (or @(-> lfo-synth :taps :lfo) 0)
           lfo-tint    (color 255 0 0 (* 255 lfo))
-          amp         (apply max (map (fn [s] @(-> s :taps :amp-adsr)) synth-voices))
+          amp         (apply max 0 (map (fn [s] @(-> s :taps :amp-adsr)) synth-voices))
           amp-tint    (color 0 255 0 (* 255 amp))
-          fil         (apply max (map (fn [s] @(-> s :taps :filter-adsr)) synth-voices))
+          fil         (apply max 0 (map (fn [s] @(-> s :taps :filter-adsr)) synth-voices))
           filter-tint (color 0 255 0 (* 255 fil))
-          arp         @(-> arp-synth :taps :arp)
+          arp         (or @(-> arp-synth :taps :arp) 0)
           arp-tint    (color 255 0 0 (* 255 arp))
           off-tint    (color 65 65 65 255)
           draw-led    (fn [x y t]

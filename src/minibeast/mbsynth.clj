@@ -54,7 +54,7 @@
         
 
 (defsynth voice
-  [voice-bus         {:default 18     :doc "bus to output voice"}
+  [voice-bus         {:default 0      :doc "bus to output voice"}
    lfo-bus           {:default 16     :doc "bus of lfo"}
    arp-trig-bus      {:default 17     :doc "bus of arp trigger"}
    arp-note-bus      {:default 17     :doc "bus of arp notes"}
@@ -65,7 +65,7 @@
    gate              {:default 0.0    :doc "ADSR trigger"}
    cutoff            {:default 1000.0 :doc "cutoff frequency of the VCF"}
    resonance         {:default 1.0    :doc "resonance of the VCF"}
-   filter-type       {:default 0.0    :doc "0 = low pass, 1 = bandpass, 2 = highpass, 3 = notch"}
+   filter-type       {:default 0      :doc "0 = low pass, 1 = bandpass, 2 = highpass, 3 = notch"}
    filter-attack     {:default 0.0    :doc "Filter envelope attack"}
    filter-decay      {:default 0.0    :doc "Filter envelope decay"}
    filter-sustain    {:default 0.0    :doc "Filter envelope sustain"}
@@ -119,31 +119,35 @@
                               glide-rate glide-rate)
         sub-note-freq   (* note-freq sub-osc-coeff)
         TRI-FOLD-THRESH (max 0.01 (+ (* FILTER-ADSR tri-fold-env) tri-fold-thresh))
-        VCO             (+ (* osc-saw (+ (saw note-freq)
+        VCO             (+ (* osc-saw (+ (lf-saw note-freq) 
                                          (* saw-detune-amp
-                                            (saw [(+ note-freq (* 1.1 saw-detune))
-                                                  (- note-freq saw-detune)
-                                                  (+ note-freq (* 2.1 saw-detune))
-                                                  (- note-freq (* 2 saw-detune))]))))
+                                            (lf-saw (+ note-freq saw-detune))
+                                            (lf-saw (- note-freq saw-detune))
+                                            (lf-saw (+ note-freq (* 2 saw-detune)))
+                                            (lf-saw (- note-freq (* 2 saw-detune))))))
                            (* osc-square (pulse note-freq (+ (* FILTER-ADSR osc-square-pw-env) osc-square-pw (* LFO lfo2pwm))))
                            (* osc-tri (/ 1.0 TRI-FOLD-THRESH) (fold2 (lf-tri note-freq) TRI-FOLD-THRESH))
                            (* osc-noise (white-noise))
                            (* sub-osc-sin (sin-osc sub-note-freq))
                            (* sub-osc-square (square sub-note-freq (* LFO lfo2pwm))))
-        ;VCO+fback       (+ VCO (local-in)) 
-        vcf-freq        (* FILTER-ADSR (+ cutoff (* lfo2filter LFO) (* cutoff-tracking note-freq) (* cutoff-env AMP-ADSR)))
-        VCF             ;(select [
-                                 (moog-ff VCO vcf-freq resonance)
-                        ;         (brf     VCO+fback vcf-freq resonance)
-                        ;         (rhpf    VCO+fback vcf-freq resonance)
-                        ;         (rhpf    VCO+fback vcf-freq resonance)] filter-type)
 
-        VIBRATO-LFO     (* vibrato-amp (sin-osc vibrato-rate))
-        VCA             (+ (* lfo2amp LFO)
+        VCO+fback       (+ VCO 0);(* feedback-amp (local-in 1))) 
+        vcf-freq        (max 20 (+ cutoff
+                                  (* lfo2filter LFO)
+                                  (* cutoff-tracking note-freq)
+                                  (* cutoff-env FILTER-ADSR)))
+        filter-bank    [(rlpf VCO vcf-freq (* -1 (- resonance 4)))
+                        (bpf  VCO vcf-freq (* -1 (- resonance 4)))
+                        (rhpf VCO vcf-freq (* -1 (- resonance 4)))
+                        (brf  VCO vcf-freq (* -1 (- resonance 4)))]
+        VCF             (select filter-type filter-bank)
+
+        VIBRATO-LFO     (+ 1 (* vibrato-amp (sin-osc:kr vibrato-rate)))
+        VCA             (* (+ 1 (*  lfo2amp LFO))
                            AMP-ADSR 
                            VIBRATO-LFO)
         OUT             (softclip (* velocity VCA VCF))
-        ;lout            (local-out OUT)
+        ;_               (local-out OUT)
         ]
     (out voice-bus OUT)))
 
