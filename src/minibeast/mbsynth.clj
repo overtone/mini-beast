@@ -59,7 +59,8 @@
    arp-trig-bus      {:default 17     :doc "bus of arp trigger"}
    arp-note-bus      {:default 17     :doc "bus of arp notes"}
    note              {:default 60     :doc "midi note value"}
-   bend              {:default 0.0    :doc "number of semitones to bend note"}
+   bend              {:default 0.0    :doc "-1 to 1"}
+   bend-range        {:default 12.0   :doc "number of semitones of a maximum bend"}
    velocity          {:default 1.0    :doc "gain for the current note"}
    portamento        {:default 0.0    :doc "rate to change to new note"}
    gate              {:default 0.0    :doc "ADSR trigger"}
@@ -109,12 +110,12 @@
         filter-adsr-tap (tap :filter-adsr 10
                              FILTER-ADSR)
         input-note-freq (midicps (+ note
+                                    (* bend bend-range)
                                     (* (lf-pulse vibrato-rate) vibrato-trill)
                                     arp-notes))
         glide-rate      (/ input-note-freq (max portamento 0.001))
         LFO             (in lfo-bus 1)
         note-freq       (slew (+ input-note-freq
-                                 bend
                                  (* lfo2pitch LFO))
                               glide-rate glide-rate)
         sub-note-freq   (* note-freq sub-osc-coeff)

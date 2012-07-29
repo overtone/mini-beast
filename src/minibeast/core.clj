@@ -50,10 +50,11 @@
                   mod-wheel-fn
                   mod-wheel-pos
                   vibrato-fn
+                  bend-range
                   arp-mode
                   arp-range])
 
-(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :low-pass :cutoff 0.0 :vibrato 0 2)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :low-pass :cutoff 0.0 :vibrato 12 0 2)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
@@ -433,6 +434,7 @@
                                                       :caption-dy -55}) synth-voices :lfo2amp           (fn [val] (- (/ val 32) 1.98)))
 
          (Control. 338 398 :knob (mk-pos-only-knob "Glide")             synth-voices :portamento        (fn [val] (/ val 1270.0)))
+         (Control. 268 398 :knob (mk-pos-only-knob "Bend Range")        synth-voices :bend-range        (fn [val] (* 12.0 (/ val 127.0))))
          (Control. 408 398 :knob (mk-pos-only-knob "Rate")              synth-voices :vibrato-rate      (fn [val] (/ val 8.0)))
          (Control. 546 398 :knob (mk-pos-only-knob "Rate")              lfo-synth    :lfo-rate
                    (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 3.0)))
@@ -612,8 +614,8 @@
 
         ;; Ptch bend wheel
         (AdvancedControl. 100 165 :wheel {:caption "Pitch"} :pitch-wheel
-                          ;; bend fn val:127->2.0 val:64->1.0
-                          (fn [val] [[synth-voices :bend (+ (* val (/ 1.0 63)) (- 2 (/ 127.0 63)))]])
+                          ;; bend fn val:127->1.0 val:64->0.0 val:0->-1.0
+                          (fn [val] [[synth-voices :bend (- (* 2.0 (/ val 127.0)) 1.0)]])
                           (fn [val] val))
         ;; Mod-wheel
         (AdvancedControl. 170 165 :wheel {:caption "Modulation"} :mod-wheel
