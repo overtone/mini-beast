@@ -1,42 +1,18 @@
 (ns minibeast.mbsynth
   (:use [overtone.live]))
 
-(defsynth LFO
-  [lfo-bus           {:default 16     :doc "bus to output LFO"}
-   lfo-rate          {:default 4.0    :doc "frequency of the LFO"}
-   lfo-sin           {:default 1.0    :doc "LFO sin amount"}
-   lfo-saw           {:default 0.0    :doc "LFO saw amount"}
-   lfo-square        {:default 0.0    :doc "LFO square amount"}
-   lfo-tri           {:default 0.0    :doc "LFO triange amount"}
-   lfo-rand          {:default 0.0    :doc "LFO random amount"}
-   lfo-slew-rand     {:default 0.0    :doc "LFO smoothed random amount"}]
-  (let [
-        rand-lfo        (t-rand -1.0 1.0 (sin-osc lfo-rate)) 
-        LFO             (+ (* lfo-sin
-                              (sin-osc lfo-rate))
-                           (* lfo-saw
-                              (lf-saw lfo-rate))
-                           (* lfo-square
-                              (square lfo-rate))
-                           (* lfo-tri
-                              (lf-tri lfo-rate))
-                           (* lfo-rand rand-lfo)
-                           (* lfo-slew-rand
-                              (slew rand-lfo)))
-        lfo-tap         (tap :lfo 10
-                             (lag-ud LFO 0 0.9))]
-    (out lfo-bus LFO)))
-
 (defsynth darp
   [arp-trig-bus      {:default 1      :doc "bus to output arp trigger"}
    arp-note-bus      {:default 1      :doc "bus to output arp notes"}
    arp-rate          {:default 2.0    :doc "Rate of arpeggiation in Hz"}
    arp-swing-phase   {:default 0      :doc "phase offset of swung (swinged?) notes. Degrees."}
    arp-range         {:default 2      :doc "Octave range of arpeggiation"}
-   arp-mode          {:default 0      :doc "0 = off, 1 = up, 2 = down, 3 = up/down, 4 = random"}]
+   arp-mode          {:default 0      :doc "0 = off, 1 = up, 2 = down, 3 = up/down, 4 = random"}
+   arp-step          {:default 0      :doc "0 = 1/4, 1 = 1/8, 2 = 1/16, 3 = 1/4T, 4 = 1/8T 5 = 1/16T"}]
   (let [arp-on?         (min arp-mode 1)
-        arp-trig        (+ (impulse (/ arp-rate 2))
-                           (impulse (/ arp-rate 2) (+ (* arp-swing-phase (/ 1 360.0))  0.5)))
+        rate            (* arp-rate (select:kr arp-step [(dc:kr 1) (dc:kr 2) (dc:kr 4) (dc:kr 3) (dc:kr 6) (dc:kr 12)]))
+        arp-trig        (+ (impulse (/ rate 2))
+                           (impulse (/ rate 2) (+ (* arp-swing-phase (/ 1 360.0))  0.5)))
         arp-tap         (tap :arp 10 (lag-ud arp-trig 0 0.9))
         arp-scale-up    (dseries 0                (dseq [ 7  5] INF) (+ (* arp-range 2) 1))
         arp-scale-down  (dseries (* 12 arp-range) (dseq [-5 -7] INF) (+ (* arp-range 2) 1))
@@ -52,6 +28,32 @@
     (out:kr arp-trig-bus (* arp-on? arp-trig))
     (out:kr arp-note-bus arp-out)))
         
+(defsynth LFO
+  [lfo-bus           {:default 16     :doc "bus to output LFO"}
+   arp-trig-bus      {:default 1      :doc "bus to input arp trigger"}
+   lfo-rate          {:default 4.0    :doc "frequency of the LFO"}
+   lfo-sin           {:default 1.0    :doc "LFO sin amount"}
+   lfo-saw           {:default 0.0    :doc "LFO saw amount"}
+   lfo-square        {:default 0.0    :doc "LFO square amount"}
+   lfo-tri           {:default 0.0    :doc "LFO triange amount"}
+   lfo-rand          {:default 0.0    :doc "LFO random amount"}
+   lfo-slew-rand     {:default 0.0    :doc "LFO smoothed random amount"}
+   lfo-arp-sync      {:default 0      :doc "0 = no sync, 1 = sync"}]
+  (let [
+        rand-lfo        (t-rand -1.0 1.0 (sin-osc lfo-rate)) 
+        arp-trig        (in:kr arp-trig-bus 1)
+        phase-reset     (* lfo-arp-sync (+ 1 (* -1 arp-trig)))
+        phase           (wrap (sweep phase-reset (* 2 Math/PI lfo-rate)) (- Math/PI) Math/PI)
+        LFO             (slew (+ (* lfo-sin (sin-osc 0 phase))
+                                 (* lfo-saw (lf-saw 0 phase))
+                                 (* lfo-square (square 0 phase))
+                                 (* lfo-tri (lf-tri 0 phase))
+                                 (* lfo-rand rand-lfo)
+                                 (* lfo-slew-rand (slew rand-lfo))) 100 100)
+        lfo-tap         (tap :lfo 10
+                             (lag-ud LFO 0 0.9))]
+    (out lfo-bus LFO)))
+
 
 (defsynth voice
   [voice-bus         {:default 0      :doc "bus to output voice"}

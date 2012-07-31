@@ -21,17 +21,17 @@
 (def voice-bus (audio-bus))
 
 (def arp-synth (darp :position :head arp-trig-bus arp-note-bus))
+(def lfo-synth (LFO :position :after
+                    :target arp-synth
+                    lfo-bus arp-trig-bus))
 (def synth-voices (doall (map (fn [_]
                                 (voice :position :after
-                                       :target arp-synth
+                                       :target lfo-synth
                                        voice-bus
                                        lfo-bus
                                        arp-trig-bus
                                        arp-note-bus))
                               (range 8))))
-(def lfo-synth (LFO :position :before
-                    :target (last synth-voices)
-                    lfo-bus))
 (def mb-synth (mbsynth :position :tail voice-bus))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -46,15 +46,17 @@
                   sub-osc-oct
                   lfo-waveform
                   lfo-amp
+                  lfo-arp-sync
                   filter-type
                   mod-wheel-fn
                   mod-wheel-pos
                   vibrato-fn
                   bend-range
                   arp-mode
-                  arp-range])
+                  arp-range
+                  arp-step])
 
-(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 :low-pass :cutoff 0.0 :vibrato 12 0 2)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 0 2 0)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
@@ -676,6 +678,47 @@
                                      [[arp-synth :arp-range new-range]]))
                           (fn [val] (case (:arp-range @synth-state)
                                      1 60 2 75 3 88 4 101)))
+
+        ;; Arp step selector
+        (AdvancedControl. 810 336 :knob {:caption   "Step"
+                                         :ui-aux-fn #(doall
+                                                       (map-indexed
+                                                         (fn [i e](apply text e (selector-knob-label-pos 820 340 i)))
+                                                         ["1/4" "1/8" "1/16" "1/4T" "1/8T" "1/16T"]))}
+                          :arp-range
+                          (fn [val] (let [old-step (:arp-step @synth-state)
+                                          new-state (alter-state
+                                                      #(assoc % :arp-step
+                                                              (if (= val 0)
+                                                                ;; button press; switch to next step
+                                                                (mod (inc old-step) 6)
+                                                                ;; knob or slider; calculate range
+                                                                (int (* (/ (inc val) 129.0) 6)))))
+                                         new-step  (:arp-step new-state)]
+                                     [[arp-synth :arp-step new-step]]))
+                          (fn [val] (case (:arp-step @synth-state)
+                                     0 65 1 75 2 84 3 98 4 111 5 125)))
+
+        ;; lfo-arp sync selector
+        (AdvancedControl. 620 398 :selector {:caption   "Clock"
+                                             :ui-aux-fn (fn [] (text "Free" 645 410)
+                                                               (text "Sync" 645 426))}
+                          :lfo-arp-sync
+                          (fn [val] (let [last-val (:lfo-arp-sync @synth-state)
+                                         new-state (alter-state
+                                                    #(assoc % :lfo-arp-sync
+                                                            (if (zero? val)
+                                                              ;; button press; switch to next val
+                                                              (case last-val
+                                                                0 1
+                                                                1 0)
+                                                              ;; knob or slider; calculate val
+                                                              ([0 1] (int (* (/ val 128.0) (count [0 1])))))))
+                                         new-val   (:lfo-arp-sync new-state)]
+                                     ;; Toggle flag
+                                     [[lfo-synth :lfo-arp-sync new-val]]))
+                          (fn [val] (case (:lfo-arp-sync @synth-state)
+                                     0 0 1 16)))
 
         ]))
 
