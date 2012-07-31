@@ -472,9 +472,9 @@
          (Control. 130 332 :knob (mk-pos-only-knob "F.Back")            mb-synth     :delay-feedback    (fn [val] (/ val 127.0)))
          (Control. 200 332 :knob (mk-pos-only-knob "Time")              mb-synth     :delay-time        (fn [val] (/ val 127.0)))
 
-         (Control. 60  398 :knob (mk-pos-only-knob "Mix")               mb-synth     :reverb-mix        (fn [val] (/ val 127.0)))
-         (Control. 130 398 :knob (mk-pos-only-knob "Size")              mb-synth     :reverb-size       (fn [val] (/ val 127.0)))
-         (Control. 200 398 :knob (mk-pos-only-knob "Damp")              mb-synth     :reverb-damp       (fn [val] (/ val 127.0)))
+         (Control. 60  399 :knob (mk-pos-only-knob "Mix")               mb-synth     :reverb-mix        (fn [val] (/ val 127.0)))
+         (Control. 130 399 :knob (mk-pos-only-knob "Size")              mb-synth     :reverb-size       (fn [val] (/ val 127.0)))
+         (Control. 200 399 :knob (mk-pos-only-knob "Damp")              mb-synth     :reverb-damp       (fn [val] (/ val 127.0)))
 
          (Control. 565 265 :slider {:caption "Attack"}                  synth-voices :filter-attack     (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
          (Control. 605 265 :slider {:caption "Decay"}                   synth-voices :filter-decay      (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
@@ -493,7 +493,7 @@
 
         ;; Put advanced controls here [x y synth-fn ui-fn]
         ;; Filter type knob
-        (AdvancedControl. 670 38 :knob {:caption   "Mode"
+        (AdvancedControl. 670 35 :knob {:caption   "Mode"
                                          :ui-aux-fn #(do
                                                        (text-align :left)
                                                        (doall
@@ -655,12 +655,12 @@
                           (fn [val] val))
 
         ;; Arp mode selector
-        (AdvancedControl. 751 398 :knob {:caption   "Mode"
+        (AdvancedControl. 742 398 :knob {:caption   "Mode"
                                          :ui-aux-fn #(do
                                                        (text-align :left)
                                                        (doall
                                                          (map-indexed
-                                                           (fn [i e](apply text e (selector-knob-label-pos 752 400 i)))
+                                                           (fn [i e](apply text e (selector-knob-label-pos 743 400 i)))
                                                            ["Off" "Up" "Down" "Up/Dwn" "Rand"]))
                                                        (text-align :center))}
                           :arp-mode
@@ -739,7 +739,7 @@
                                      0 0 1 16)))
 
         ;; Arp tap tempo button
-        (AdvancedControl. 889 408 :button {:caption "Tap"} :arp-tap-tempo
+        (AdvancedControl. 889 407 :button {:caption "Tap"} :arp-tap-tempo
                           (fn [val] 
                             (let [dt (- (now) (:arp-tap-time @synth-state))]
                               (alter-state #(assoc % :arp-tap-time (now)))
@@ -925,7 +925,7 @@
                   [[590 388 lfo-tint]
                    [705 170 filter-tint]
                    [910 170 amp-tint]
-                   [898 384 arp-tint]]))
+                   [898 383 arp-tint]]))
       (tint (color 255 255 255 255))
       (doall (map (fn [k] (draw-key (first (:coords k))
                                     (second (:coords k))
