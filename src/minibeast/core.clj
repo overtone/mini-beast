@@ -54,9 +54,10 @@
                   bend-range
                   arp-mode
                   arp-range
-                  arp-step])
+                  arp-step
+                  arp-tap-time])
 
-(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 0 2 0)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 0 2 0 0)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
@@ -290,6 +291,22 @@
     (image knob-img 0 0)
     (tint 255 255 255)))
 
+(defn draw-button [x y amount selected? caption caption-dx caption-dy]
+  "x: x position
+   y: y position
+   amount: not used"
+  (let [button-img (state :button-img)]
+    (if-not (nil? caption)
+      (let [cdx (or caption-dx 0)
+            cdy (or caption-dy 0)]
+        (text-size 8)
+        (text-align :center)
+        (text caption (+ 22 cdx x) (+ cdy y 46))))
+    (if selected?
+      (apply tint selected-tint))
+    (image button-img x y)
+    (tint 255 255 255)))
+
 (defn draw-slider [x y amount selected? caption caption-dx caption-dy]
   "x: x position
      y: y position
@@ -365,6 +382,7 @@
       :knob     (apply draw-knob (apply conj args
                                         ((juxt :pos-indicator? :start-sym :end-sym :sym-dx :sym-dy
                                                :zero? :caption :caption-dx :caption-dy) ui-hints)))
+      :button   (apply draw-button (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
       :slider   (apply draw-slider (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
       :selector (apply draw-selector (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
       :wheel    (apply draw-wheel (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints))))
@@ -720,6 +738,15 @@
                           (fn [val] (case (:lfo-arp-sync @synth-state)
                                      0 0 1 16)))
 
+        ;; Arp tap tempo button
+        (AdvancedControl. 889 408 :button {:caption "Tap"} :arp-tap-tempo
+                          (fn [val] 
+                            (let [dt (- (now) (:arp-tap-time @synth-state))]
+                              (alter-state #(assoc % :arp-tap-time (now)))
+                              (if (< dt 2000)
+                                [[arp-synth :arp-rate (/ 1000 dt)]]
+                                [])))
+                          (fn [val] val))
         ]))
 
 (def ctl->control (into {} (map (fn [e] {(:name e) e}) controls)))
@@ -837,6 +864,7 @@
 
   (ctl synth-voices :gate 0)
   (set-state! :background-img              (load-image "background.png")
+              :button-img                  (load-image "button.png")
               :knob-img                    (load-image "knob.png")
               :knob-background-img         (load-image "knob-background.png")
               :slider-img                  (load-image "slider.png")
@@ -897,7 +925,7 @@
                   [[590 388 lfo-tint]
                    [705 170 filter-tint]
                    [910 170 amp-tint]
-                   [898 388 arp-tint]]))
+                   [898 384 arp-tint]]))
       (tint (color 255 255 255 255))
       (doall (map (fn [k] (draw-key (first (:coords k))
                                     (second (:coords k))
@@ -939,6 +967,7 @@
   [x y]
   (first (filter (fn [c] (case (:type c)
                            :knob     (< (dist x y (+ (:x c) 25) (+ (:y c) 25)) 30)
+                           :button   (in-box? x y (:x c) (:y c)  (+ (:x c) 45) (+ (:y c) 37))
                            :slider   (in-box? x y (:x c) (- (:y c) 70) (+ (:x c) 26) (+ (:y c) 31))
                            :selector (in-box? x y (:x c) (:y c) (+ (:x c) 14) (+ (:y c) 32))
                            :wheel    (in-box? x y (:x c) (:y c) (+ (:x c) 25) (+ (:y c) 137))))
