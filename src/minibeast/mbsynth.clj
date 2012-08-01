@@ -68,6 +68,7 @@
    gate              {:default 0.0    :doc "ADSR trigger"}
    cutoff            {:default 1000.0 :doc "cutoff frequency of the VCF"}
    resonance         {:default 1.0    :doc "resonance of the VCF"}
+   env-speed         {:default 1.0    :doc "envelope speed modifier. Modifies ADR speeds by multiplying."}
    filter-type       {:default 0      :doc "0 = low pass, 1 = bandpass, 2 = highpass, 3 = notch"}
    filter-attack     {:default 0.0    :doc "Filter envelope attack"}
    filter-decay      {:default 0.0    :doc "Filter envelope decay"}
@@ -105,10 +106,16 @@
         arp-trig        (in:kr arp-trig-bus 1)
         arp-notes       (in:kr arp-note-bus 1)
         gate-with-arp   (- gate arp-trig)
-        AMP-ADSR        (env-gen (adsr amp-attack amp-decay amp-sustain amp-release) gate-with-arp)
+        AMP-ADSR        (env-gen (adsr (* amp-attack env-speed)
+                                       (* amp-decay env-speed)
+                                       amp-sustain
+                                       (* amp-release env-speed)) gate-with-arp)
         amp-adsr-tap    (tap :amp-adsr 10
                              AMP-ADSR)
-        FILTER-ADSR     (env-gen (adsr filter-attack filter-decay filter-sustain filter-release) gate-with-arp)
+        FILTER-ADSR     (env-gen (adsr (* filter-attack env-speed)
+                                       (* filter-decay env-speed)
+                                       filter-sustain
+                                       (* filter-release env-speed)) gate-with-arp)
         filter-adsr-tap (tap :filter-adsr 10
                              FILTER-ADSR)
         input-note-freq (midicps (+ note

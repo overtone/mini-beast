@@ -52,12 +52,13 @@
                   mod-wheel-pos
                   vibrato-fn
                   bend-range
+                  env-speed
                   arp-mode
                   arp-range
                   arp-step
                   arp-tap-time])
 
-(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 0 2 0 0)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 :fast 0 2 0 0)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
@@ -557,6 +558,29 @@
                                      [[synth-voices old-waveform 0] [synth-voices new-waveform (:sub-osc-amp @synth-state)]]))
                           (fn [val] (case (:sub-osc-waveform @synth-state)
                                      :sub-osc-square 0 :sub-osc-sin 16 -10)))
+        ;; envelope speed selector
+        (AdvancedControl. 690 103 :selector {:caption   "ENV Speed"
+                                             :ui-aux-fn (fn [] (text "Fast" 716 114)
+                                                               (text "Slow" 716 130))}
+                          :env-speed
+                          (fn [val] (let [old-speed (:env-speed @synth-state)
+                                         new-state  (alter-state
+                                                      #(assoc % :env-speed
+                                                              (if (zero? val)
+                                                                ;; button press; switch to next sped
+                                                                (case old-speed
+                                                                  :fast :slow
+                                                                  :slow :fast)
+                                                                ;; knob or slider; calculate speed
+                                                                ([:fast :slow] (int (* (/ val 128.0) (count [:fast :slow])))))))
+                                         new-speed  (:env-speed new-state)]
+                                     ;; Toggle env-speed
+                                     [[synth-voices :env-speed (case (:env-speed @synth-state)
+                                                                         :fast 1
+                                                                         :slow 10)]]))
+                          (fn [val] (case (:env-speed @synth-state)
+                                     :fast 0 :slow 16)))
+
         ;; sub-osc octave selector
         (AdvancedControl. 290 106 :selector {:caption   "OCTAVE"
                                              :ui-aux-fn (fn [] (text "-1" 315 119)
