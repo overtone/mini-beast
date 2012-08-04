@@ -44,6 +44,7 @@
 (defrecord SynthState [sub-osc-waveform
                   sub-osc-amp
                   sub-osc-oct
+                  octave-transpose
                   lfo-waveform
                   lfo-amp
                   lfo-arp-sync
@@ -58,7 +59,7 @@
                   arp-step
                   arp-tap-time])
 
-(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 :fast 0 2 0 0)))
+(def synth-state (ref (SynthState. :sub-osc-square 0.0 1 0 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 :fast 0 2 0 0)))
 
 (defn alter-state [f & more]
   "Alters the state of the synth."
@@ -800,6 +801,16 @@
    (Control. 130 566 :knob (mk-pos-only-knob "Size")   mb-synth :reverb-size    (fn [val] (/ val 127.0)))
    (Control. 200 566 :knob (mk-pos-only-knob "Damp")   mb-synth :reverb-damp    (fn [val] (/ val 127.0)))])
 
+(defn octave-controls []
+  [(AdvancedControl. 100 392 :small-button {:caption "Down"} :octave-down
+                     (fn [val] (let [new-state (alter-state #(assoc % :octave-transpose (max -2 (dec (:octave-transpose %)))))]
+                                 [[synth-voices :octave-transpose (:octave-transpose new-state)]]))
+                     (fn [val] 0))
+   (AdvancedControl. 175 392 :small-button {:caption "Up"}   :octave-up
+                     (fn [val] (let [new-state (alter-state #(assoc % :octave-transpose (min  2 (inc (:octave-transpose %)))))]
+                                 [[synth-voices :octave-transpose (:octave-transpose new-state)]]))
+                     (fn [val] 0))])
+
 (defn get-controls 
   ([]
    (get-controls @show-modulation-controls?))
@@ -820,6 +831,7 @@
                              (arp-controls)
                              (volume-controls)
                              (wheel-controls)
+                             (octave-controls)
                          (if show-mod-controls?
                              (mod-controls)
                              [])))))]
@@ -996,15 +1008,20 @@
       ; draw background
       (image (state :mod-panel-img) 50 472))
     (doall (map draw-control (get-controls)))
-    (let [lfo         (or @(-> lfo-synth :taps :lfo) 0)
-          lfo-tint    (color 255 0 0 (* 255 lfo))
-          amp         (apply max 0 (map (fn [s] @(-> s :taps :amp-adsr)) synth-voices))
-          amp-tint    (color 0 255 0 (* 255 amp))
-          fil         (apply max 0 (map (fn [s] @(-> s :taps :filter-adsr)) synth-voices))
-          filter-tint (color 0 255 0 (* 255 fil))
-          arp         (or @(-> arp-synth :taps :arp) 0)
-          arp-tint    (color 255 0 0 (* 255 arp))
-          off-tint    (color 65 65 65 255)
+    (let [lfo              (or @(-> lfo-synth :taps :lfo) 0)
+          lfo-tint         (color 255 0 0 (* 255 lfo))
+          amp              (apply max 0 (map (fn [s] @(-> s :taps :amp-adsr)) synth-voices))
+          amp-tint         (color 0 255 0 (* 255 amp))
+          fil              (apply max 0 (map (fn [s] @(-> s :taps :filter-adsr)) synth-voices))
+          filter-tint      (color 0 255 0 (* 255 fil))
+          arp              (or @(-> arp-synth :taps :arp) 0)
+          arp-tint         (color 255 0 0 (* 255 arp))
+          off-tint         (color 65 65 65 255)
+          down-2-oct-tint  (color 255 0   0 (if (= -2 (:octave-transpose @synth-state)) 255 66))
+          down-1-oct-tint  (color 255 255 0 (if (= -1 (:octave-transpose @synth-state)) 255 66))
+          down-0-oct-tint  (color 0   255 0 (if (=  0 (:octave-transpose @synth-state)) 255 66))
+          up-1-oct-tint    (color 255 255 0 (if (=  1 (:octave-transpose @synth-state)) 255 66))
+          up-2-oct-tint    (color 255 0   0 (if (=  2 (:octave-transpose @synth-state)) 255 66))
           draw-led    (fn [x y t]
                         (tint off-tint)
                         (image led-background-img (+ 10 x) (+ 10 y))
@@ -1015,8 +1032,18 @@
                   [[590 388 lfo-tint]
                    [705 170 filter-tint]
                    [910 170 amp-tint]
-                   [898 383 arp-tint]]))
-      (tint (color 255 255 255 255)))))
+                   [898 383 arp-tint]
+                   [103 356 down-2-oct-tint]
+                   [123 356 down-1-oct-tint]
+                   [143 356 down-0-oct-tint]
+                   [163 356 up-1-oct-tint]
+                   [183 356 up-2-oct-tint]]))
+      (tint (color 255 255 255 255))
+      (doall (map (fn [t] (apply text ((juxt :t :x :y) t))) [{:x 116 :y 360 :t "-2"}
+                                                             {:x 136 :y 360 :t "-1"}
+                                                             {:x 158 :y 360 :t "0"}
+                                                             {:x 176 :y 360 :t "+1"}
+                                                             {:x 196 :y 360 :t "+2"}])))))
 
 (defn in-box?
   "is point [x y] inside the box bounded by [u v] [s t]?
@@ -1086,13 +1113,14 @@
             ;; constrain new-val to 0-127.0
             new-val          (constrain (- last-val dy) 0.0 127.0)
             synth-ctl-vals   ((:synth-fn c) new-val)]
-        (doall (map (fn [synth-ctl-val]
-                      (let [synths       (first synth-ctl-val)
-                            synth-ctl    (second synth-ctl-val)
-                            synth-val    (last synth-ctl-val)
-                            ui-val       ((:ui-fn c) new-val)]
-                        (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctl " ui-val " ui-val)
-                        (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals))))))
+        (when (not-any? (:type c) [:button :small-button])
+          (doall (map (fn [synth-ctl-val]
+                        (let [synths       (first synth-ctl-val)
+                              synth-ctl    (second synth-ctl-val)
+                              synth-val    (last synth-ctl-val)
+                              ui-val       ((:ui-fn c) new-val)]
+                          (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctl " ui-val " ui-val)
+                          (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals)))))))
 
 ;; keyboard key press using mouse
 (defn mouse-pressed []

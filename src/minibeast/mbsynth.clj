@@ -64,6 +64,7 @@
    bend              {:default 0.0    :doc "-1 to 1"}
    bend-range        {:default 12.0   :doc "number of semitones of a maximum bend"}
    velocity          {:default 1.0    :doc "gain for the current note"}
+   octave-transpose  {:default 0.0    :doc "number of octaves to transpose notes. -2 to 2"}
    portamento        {:default 0.0    :doc "rate to change to new note"}
    gate              {:default 0.0    :doc "ADSR trigger"}
    cutoff            {:default 1000.0 :doc "cutoff frequency of the VCF"}
@@ -119,6 +120,7 @@
         filter-adsr-tap (tap :filter-adsr 10
                              FILTER-ADSR)
         input-note-freq (midicps (+ note
+                                    (* octave-transpose 12)
                                     (* bend bend-range)
                                     (* (lf-pulse vibrato-rate) vibrato-trill)
                                     arp-notes))
