@@ -77,6 +77,7 @@
 (defonce dragged-control            (atom nil))
 (defonce dev-chan-note-cmd->control (atom {}))
 (defonce mouse-pressed-note         (atom nil))
+(defonce show-modulation-controls?  (atom true))
 
 ;; Keep a record of the last eight key presses
 ;; in a map of {:synth s, :note n}
@@ -308,6 +309,22 @@
     (image button-img x y)
     (tint 255 255 255)))
 
+(defn draw-small-button [x y amount selected? caption caption-dx caption-dy]
+  "x: x position
+   y: y position
+   amount: not used"
+  (let [button-img (state :small-button-img)]
+    (if-not (nil? caption)
+      (let [cdx (or caption-dx 0)
+            cdy (or caption-dy 0)]
+        (text-size 8)
+        (text-align :center)
+        (text caption (+ 22 cdx x) (+ cdy y 30))))
+    (if selected?
+      (apply tint selected-tint))
+    (image button-img x y)
+    (tint 255 255 255)))
+
 (defn draw-slider [x y amount selected? caption caption-dx caption-dy]
   "x: x position
      y: y position
@@ -375,18 +392,19 @@
         (tint 255 255 255 255)))))
 
 (defn draw-control [control]
-  (let [selected? (= @selected-control control)
+  (let [selected? (= (:name @selected-control) (:name control))
         ui-val    (or ((:name control) @ui-state) 0)
         args      (conj ((juxt :x :y #((:ui-fn %) ui-val)) control) selected?)
         ui-hints  (:ui-hints control)]
     (case (:type control)
-      :knob     (apply draw-knob (apply conj args
-                                        ((juxt :pos-indicator? :start-sym :end-sym :sym-dx :sym-dy
-                                               :zero? :caption :caption-dx :caption-dy) ui-hints)))
-      :button   (apply draw-button (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
-      :slider   (apply draw-slider (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
-      :selector (apply draw-selector (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
-      :wheel    (apply draw-wheel (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints))))
+      :knob         (apply draw-knob           (apply conj args
+                                                           ((juxt :pos-indicator? :start-sym :end-sym :sym-dx :sym-dy
+                                                                  :zero? :caption :caption-dx :caption-dy) ui-hints)))
+      :button       (apply draw-button         (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
+      :small-button (apply draw-small-button   (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
+      :slider       (apply draw-slider         (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
+      :selector     (apply draw-selector       (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
+      :wheel        (apply draw-wheel          (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints))))
     (when-let [ui-aux-fn (-> control :ui-hints :ui-aux-fn )]
       (ui-aux-fn))))
 
@@ -427,353 +445,388 @@
   [(+ x 20 (* -29 (Math/cos (+ (/ i 2.0) 1.5))))
    (+ y 22 (* -27 (Math/sin (+ (/ i 2.0) 1.5))))])
 
-(def controls
-  (concat
-   (map control->advanced-control
-        [
-         (Control. 885 38 :knob (mk-pos-only-knob "Master Volume")      mb-synth     :volume            (fn [val] (/ val 12.0)))
-         (Control. 750 38 :knob (mk-pos-only-knob "Feedback Amt")       mb-synth     :feedback-amp      (fn [val] (/ val 127.0)))
-         (Control. 545 35 :knob (mk-pos-only-knob "Cutoff")             synth-voices :cutoff            (fn [val] (* (- val 10) 100.0)))
-         (Control. 613 35 :knob (mk-pos-only-knob "Resonance")          synth-voices :resonance         (fn [val] (/ val 32.0)))
-         (Control. 479 35 :knob (mk-pos-only-knob "Tri fold")           synth-voices :tri-fold-thresh   (fn [val] (+ (/ val -127.0) 1)))
-         (Control. 341 35 :knob (mk-pos-only-knob "Detune Amt")         synth-voices :saw-detune-amp    (fn [val] (/ val 127.0)))
-         (Control. 409 38 :knob (mk-pos-only-knob "Pulse Width"
-                                                  {:start-sym "50%"
-                                                   :end-sym "90%"
-                                                   :sym-dy -5})         synth-voices :osc-square-pw     (fn [val] (+ (/ val 255.0) 0.5)))
 
-         (Control. 320 265 :slider {}                                   synth-voices :osc-saw           (fn [val] (/ val 127.0)))
-         (Control. 360 265 :slider {}                                   synth-voices :osc-square        (fn [val] (/ val 127.0)))
-         (Control. 400 265 :slider {}                                   synth-voices :osc-tri           (fn [val] (/ val 127.0)))
-         (Control. 440 265 :slider {}                                   synth-voices :osc-noise         (fn [val] (/ val 127.0)))
+(defn osc-controls []
+  [(Control.         479 35 :knob (mk-pos-only-knob "Tri fold")       synth-voices :tri-fold-thresh   (fn [val] (+ (/ val -127.0) 1)))
+   (Control.         341 35 :knob (mk-pos-only-knob "Detune Amt")     synth-voices :saw-detune-amp    (fn [val] (/ val 127.0)))
+   (Control.         409 38 :knob (mk-pos-only-knob "Pulse Width"
+                                                    {:start-sym "50%"
+                                                     :end-sym "90%"
+                                                     :sym-dy -5})     synth-voices :osc-square-pw     (fn [val] (+ (/ val 255.0) 0.5)))
+   (Control.         341 102 :knob (mk-pos-only-knob   "Detune Rate") synth-voices :saw-detune        (fn [val] (/ val 8.0)))
+   (Control.         409 102 :knob (mk-plus-minus-knob "ENV Amt")     synth-voices :osc-square-pw-env (fn [val] (- (/ val 64.0) 1.0)))
+   (Control.         479 102 :knob (mk-plus-minus-knob "ENV Amt")     synth-voices :tri-fold-env      (fn [val] (- (/ val 64.0) 1.0)))
+   ;; sub-octave osc waveform selector
+   (AdvancedControl. 290 46  :selector {:caption "WAVE"
+                                         :ui-aux-fn (fn [] (shape (state :square-shape) 310 51)
+                                                           (shape (state :sin-shape)    310 65))}
+                     :sub-osc-waveform
+                     (fn [val] (let [old-waveform (:sub-osc-waveform @synth-state)
+                                    new-state    (alter-state
+                                                  #(assoc % :sub-osc-waveform
+                                                          (if (zero? val)
+                                                            ;; button press; switch to next waveform
+                                                            (next-sub-osc-waveform (:sub-osc-waveform %))
+                                                            ;; knob or slider; calculate waveform
+                                                            (sub-osc-waveforms (int (* (/ val 128.0) (count sub-osc-waveforms)))))))
+                                    new-waveform (:sub-osc-waveform new-state)]
+                                ;; Toggle sub-osc waveform
+                                [[synth-voices old-waveform 0] [synth-voices new-waveform (:sub-osc-amp @synth-state)]]))
+                     (fn [val] (case (:sub-osc-waveform @synth-state)
+                                :sub-osc-square 0 :sub-osc-sin 16 -10)))
+   ;; sub-osc octave selector
+   (AdvancedControl. 290 106 :selector {:caption "OCTAVE"
+                                        :ui-aux-fn (fn [] (text "-1" 315 119)
+                                                          (text "-2" 315 135))}
+                     :sub-osc-oct
+                     (fn [val] (let [old-oct  (:sub-osc-oct @synth-state)
+                                    new-state (alter-state
+                                               #(assoc % :sub-osc-oct
+                                                       (if (zero? val)
+                                                         ;; button press; switch to next oct
+                                                         (case old-oct
+                                                           1 2
+                                                           2 1)
+                                                         ;; knob or slider; calculate waveform
+                                                         ([1 2] (int (* (/ val 128.0) (count [1 2])))))))
+                                    new-oct   (:sub-osc-oct new-state)]
+                                ;; Toggle sub-osc octave
+                                [[synth-voices :sub-osc-coeff (case (:sub-osc-oct @synth-state)
+                                                                    1 0.5
+                                                                    2 0.25)]]))
+                     (fn [val] (case (:sub-osc-oct @synth-state)
+                                1 0 2 16)))])
 
-         (Control. 475 332 :knob (mk-plus-minus-knob "PWM")             synth-voices :lfo2pwm           (fn [val] (- (/ val 32.0) 1.98)))
-         (Control. 544 332 :knob (mk-plus-minus-knob "Pitch")           synth-voices :lfo2pitch         (fn [val] (- (/ val 2.0) 32.0)))
-         (Control. 612 332 :knob (mk-plus-minus-knob "Filter")          synth-voices :lfo2filter        (fn [val] (* (- val 64.0) 400.0)))
-         (Control. 681 332 :knob (mk-plus-minus-knob "Amp"
-                                                     {:caption-dx -25
-                                                      :caption-dy -55}) synth-voices :lfo2amp           (fn [val] (- (/ val 32) 1.98)))
 
-         (Control. 338 398 :knob (mk-pos-only-knob "Glide")             synth-voices :portamento        (fn [val] (/ val 1270.0)))
-         (Control. 268 398 :knob (mk-pos-only-knob "Bend Range")        synth-voices :bend-range        (fn [val] (* 12.0 (/ val 127.0))))
-         (Control. 408 398 :knob (mk-pos-only-knob "Rate")              synth-voices :vibrato-rate      (fn [val] (/ val 8.0)))
-         (Control. 546 398 :knob (mk-pos-only-knob "Rate")              lfo-synth    :lfo-rate
-                   (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 3.0)))
+(defn filter-controls []
+  [(Control.         545 35  :knob (mk-pos-only-knob "Cutoff")        synth-voices :cutoff          (fn [val] (* (- val 10) 100.0)))
+   (Control.         613 35  :knob (mk-pos-only-knob "Resonance")     synth-voices :resonance       (fn [val] (/ val 32.0)))
+   (Control.         545 102 :knob (mk-plus-minus-knob "ENV Amt")     synth-voices :cutoff-env      (fn [val] (* (- val 64.0) 200.0)))
+   (Control.         613 102 :knob (mk-plus-minus-knob "KBD Tracking"
+                                               {:start-sym "0%"
+                                                :end-sym "200%"
+                                                :sym-dy -5})          synth-voices :cutoff-tracking (fn [val] (/ val 64.0)))
+   ;; Filter type knob
+   (AdvancedControl. 670 35  :knob {:caption   "Mode"
+                                    :ui-aux-fn #(do
+                                                  (text-align :left)
+                                                  (doall
+                                                    (map-indexed
+                                                      (fn [i e](apply text e (selector-knob-label-pos 670 38 i)))
+                                                      ["LP" "BP" "HP" "Notch"]))
+                                                  (text-align :center))}
+                     :filter-type
+                     (fn [val] (let [old-mode (:filter-type @synth-state)
+                                    new-state (alter-state
+                                                  #(assoc % :filter-type
+                                                          (if (= val 0)
+                                                            ;; button press; switch to next mode
+                                                            (next-filter-type (:filter-type %))
+                                                            ;; knob or slider; calculate mode
+                                                            (filter-types (int (* (/ val 128.0) (count filter-types)))))))
+                                    new-mode (:filter-type new-state)]
+                                ;; Toggle filter mode
+                                [[synth-voices :filter-type (.indexOf filter-types new-mode)]]))
+                     (fn [val] (case (:filter-type @synth-state)
+                                :low-pass 60 :band-pass 72 :high-pass 83 :notch 96)))
+   ;; envelope speed selector
+   (AdvancedControl. 690 103 :selector {:caption   "ENV Speed"
+                                        :ui-aux-fn (fn [] (text "Fast" 716 114)
+                                                          (text "Slow" 716 130))}
+                     :env-speed
+                     (fn [val] (let [old-speed (:env-speed @synth-state)
+                                    new-state  (alter-state
+                                                 #(assoc % :env-speed
+                                                         (if (zero? val)
+                                                           ;; button press; switch to next sped
+                                                           (case old-speed
+                                                             :fast :slow
+                                                             :slow :fast)
+                                                           ;; knob or slider; calculate speed
+                                                           ([:fast :slow] (int (* (/ val 128.0) (count [:fast :slow])))))))
+                                    new-speed  (:env-speed new-state)]
+                                ;; Toggle env-speed
+                                [[synth-voices :env-speed (case (:env-speed @synth-state)
+                                                                    :fast 1
+                                                                    :slow 10)]]))
+                     (fn [val] (case (:env-speed @synth-state)
+                                :fast 0 :slow 16)))])
 
-         (Control. 341 102 :knob (mk-pos-only-knob   "Detune Rate")     synth-voices :saw-detune        (fn [val] (/ val 8.0)))
-         (Control. 409 102 :knob (mk-plus-minus-knob "ENV Amt")         synth-voices :osc-square-pw-env (fn [val] (- (/ val 64.0) 1.0)))
-         (Control. 479 102 :knob (mk-plus-minus-knob "ENV Amt")         synth-voices :tri-fold-env      (fn [val] (- (/ val 64.0) 1.0)))
-         (Control. 545 102 :knob (mk-plus-minus-knob "ENV Amt")         synth-voices :cutoff-env        (fn [val] (* (- val 64.0) 200.0)))
-         (Control. 613 102 :knob (mk-plus-minus-knob "KBD Tracking"
-                                                     {:start-sym "0%"
-                                                      :end-sym "200%"
-                                                      :sym-dy -5})      synth-voices :cutoff-tracking   (fn [val] (/ val 64.0)))
+(defn osc-mix-controls []
+  [(Control.         320 265 :slider {} synth-voices :osc-saw    (fn [val] (/ val 127.0)))
+   (Control.         360 265 :slider {} synth-voices :osc-square (fn [val] (/ val 127.0)))
+   (Control.         400 265 :slider {} synth-voices :osc-tri    (fn [val] (/ val 127.0)))
+   (Control.         440 265 :slider {} synth-voices :osc-noise  (fn [val] (/ val 127.0)))
+   ;; Sub-octave amount
+   (AdvancedControl. 280 265 :slider {} :sub-osc-amp
+                     (fn [val] (let [new-state (alter-state #(assoc % :sub-osc-amp (/ val 127.0)))]
+                                [[synth-voices (:sub-osc-waveform @synth-state) (/ val 127.0)]]))
+                     (fn [val] (* 127.0 (:sub-osc-amp @synth-state))))])
 
-         (Control. 60  332 :knob (mk-pos-only-knob "Level")             mb-synth     :delay-mix         (fn [val] (/ val 127.0)))
-         (Control. 130 332 :knob (mk-pos-only-knob "F.Back")            mb-synth     :delay-feedback    (fn [val] (/ val 127.0)))
-         (Control. 200 332 :knob (mk-pos-only-knob "Time")              mb-synth     :delay-time        (fn [val] (/ val 127.0)))
+(defn filter-asdr-controls []
+  [(Control. 565 265 :slider {:caption "Attack"}  synth-voices :filter-attack  (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+   (Control. 605 265 :slider {:caption "Decay"}   synth-voices :filter-decay   (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+   (Control. 645 265 :slider {:caption "Sustain"} synth-voices :filter-sustain (fn [val] (/ val 127.0)))
+   (Control. 685 265 :slider {:caption "Release"} synth-voices :filter-release (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))])
 
-         (Control. 60  399 :knob (mk-pos-only-knob "Mix")               mb-synth     :reverb-mix        (fn [val] (/ val 127.0)))
-         (Control. 130 399 :knob (mk-pos-only-knob "Size")              mb-synth     :reverb-size       (fn [val] (/ val 127.0)))
-         (Control. 200 399 :knob (mk-pos-only-knob "Damp")              mb-synth     :reverb-damp       (fn [val] (/ val 127.0)))
 
-         (Control. 565 265 :slider {:caption "Attack"}                  synth-voices :filter-attack     (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 605 265 :slider {:caption "Decay"}                   synth-voices :filter-decay      (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 645 265 :slider {:caption "Sustain"}                 synth-voices :filter-sustain    (fn [val] (/ val 127.0)))
-         (Control. 685 265 :slider {:caption "Release"}                 synth-voices :filter-release    (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 770 265 :slider {:caption "Attack"}                  synth-voices :amp-attack        (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 810 265 :slider {:caption "Decay"}                   synth-voices :amp-decay         (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
-         (Control. 850 265 :slider {:caption "Sustain"}                 synth-voices :amp-sustain       (fn [val] (/ val 127.0)))
-         (Control. 890 265 :slider {:caption "Release"}                 synth-voices :amp-release       (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+(defn amp-adsr-controls []
+  [(Control. 770 265 :slider {:caption "Attack"}  synth-voices :amp-attack  (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+   (Control. 810 265 :slider {:caption "Decay"}   synth-voices :amp-decay   (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+   (Control. 850 265 :slider {:caption "Sustain"} synth-voices :amp-sustain (fn [val] (/ val 127.0)))
+   (Control. 890 265 :slider {:caption "Release"} synth-voices :amp-release (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))])
 
-         (Control. 885 332 :knob (mk-pos-only-knob "Tempo")             arp-synth    :arp-rate          (fn [val] (let [rate (/ val 5.0)]
-                                                                                                                    (println "arp-rate " (* (/ 60 8) rate) " bmp")
-                                                                                                                    rate)))
-         (Control. 829 398 :knob (mk-pos-only-knob "Swing")             arp-synth    :arp-swing-phase   (fn [val] (* 360 (/ val 127.0))))
-         ]) [
+(defn misc-controls []
+  [(Control. 338 398 :knob (mk-pos-only-knob "Glide")      synth-voices :portamento   (fn [val] (/ val 1270.0)))
+   (Control. 268 398 :knob (mk-pos-only-knob "Bend Range") synth-voices :bend-range   (fn [val] (* 12.0 (/ val 127.0))))
+   (Control. 408 398 :knob (mk-pos-only-knob "Rate")       synth-voices :vibrato-rate (fn [val] (/ val 8.0)))
+   ;; Vibrato type selector
+   (AdvancedControl. 424 338 :selector {:ui-aux-fn (fn [] (shape (state :trill-up-shape)   445 345)
+                                                          (shape (state :sin-shape)        445 355)
+                                                          (shape (state :trill-down-shape) 445 365))}
+                     :vibrato-fn
+                     (fn [val] (let [old-fn    (:vibrato-fn @synth-state)
+                                     new-state (alter-state
+                                                 #(assoc % :vibrato-fn
+                                                         (if (zero? val)
+                                                           ;; button press; switch to next fn
+                                                           (next-vibrato-fn old-fn)
+                                                           ;; knob or slider; calc fn
+                                                           (vibrato-fns (int (* (/ val 128.0) (count vibrato-fns)))))))
+                                     new-fn    (:vibrato-fn new-state)
+                                     mod-wheel-pos (:mod-wheel-pos @synth-state)]
+                                 (case (:vibrato-fn @synth-state)
+                                   :vibrato    [[synth-voices :vibrato-amp (/ mod-wheel-pos 127.0)] 
+                                                [synth-voices :vibrato-trill 0]]
+                                   :trill-up   [[synth-voices :vibrato-amp 0.0]
+                                                [synth-voices :vibrato-trill (int (/ mod-wheel-pos 10))]]
+                                   :trill-down [[synth-voices :vibrato-amp 0.0]
+                                                [synth-voices :vibrato-trill (- (int (/ mod-wheel-pos 10)))]])))
+                     (fn [val] (case (:vibrato-fn @synth-state)
+                                 :vibrato 10
+                                 :trill-up 0
+                                 :trill-down 20)))
+   ;; Mod wheel function
+   (AdvancedControl. 283 335 :selector {:caption   "MOD Wheel"
+                                        :ui-aux-fn (fn [] (text "Cutoff"  315 348)
+                                                          (text "Vibrato" 315 358)
+                                                          (text "LFOAmt"  315 368))}
+                     :mod-wheel-fn
+                     (fn [val] (let [old-fn   (:mod-wheel-fn @synth-state)
+                                    new-state (alter-state
+                                              #(assoc % :mod-wheel-fn
+                                                       (if (zero? val)
+                                                         ;; button press; switch to next fn
+                                                         (next-mod-wheel-fn old-fn)
+                                                         ;; knob or slider; calc fn
+                                                         (mod-wheel-fns (int (* (/ val 128.0) (count mod-wheel-fns)))))))
+                                    new-fn    (:mod-wheel-fn new-state)]
+                                []))
+                     (fn [val] (case  (:mod-wheel-fn @synth-state)
+                                :cutoff 0 :vibrato 10 :lfo-amount 20)))
+   ;; Show modulation panel
+   (AdvancedControl. 64 434 :small-button {:caption "Toggle panel"}
+                     :toggle-modulation-controls
+                     (fn [val]
+                       (if (zero? val)
+                         (swap! show-modulation-controls? not)
+                         (reset! show-modulation-controls? (> val 64.0))))
+                     (fn [val] 0))])
 
-        ;; Put advanced controls here [x y synth-fn ui-fn]
-        ;; Filter type knob
-        (AdvancedControl. 670 35 :knob {:caption   "Mode"
-                                         :ui-aux-fn #(do
-                                                       (text-align :left)
-                                                       (doall
-                                                         (map-indexed
-                                                           (fn [i e](apply text e (selector-knob-label-pos 670 38 i)))
-                                                           ["LP" "BP" "HP" "Notch"]))
-                                                       (text-align :center))}
-                          :filter-type
-                          (fn [val] (let [old-mode (:filter-type @synth-state)
-                                         new-state (alter-state
-                                                       #(assoc % :filter-type
-                                                               (if (= val 0)
-                                                                 ;; button press; switch to next mode
-                                                                 (next-filter-type (:filter-type %))
-                                                                 ;; knob or slider; calculate mode
-                                                                 (filter-types (int (* (/ val 128.0) (count filter-types)))))))
-                                         new-mode (:filter-type new-state)]
-                                     ;; Toggle filter mode
-                                     [[synth-voices :filter-type (.indexOf filter-types new-mode)]]))
-                          (fn [val] (case (:filter-type @synth-state)
-                                     :low-pass 60 :band-pass 72 :high-pass 83 :notch 96)))
-        ;; LFO waveform knob
-        (AdvancedControl. 478 398 :knob {:caption   "Wave"
-                                         :ui-aux-fn #(doall
-                                                       (map-indexed
-                                                         (fn [i e] (apply shape 
-                                                                          (state e)
-                                                                          (selector-knob-label-pos 478 398 i)))
-                                                         [:sin-shape :tri-shape :saw-shape :square-shape
-                                                          :random-shape :random-slew-shape]))}
-                          :lfo-waveform
-                          (fn [val] (let [old-waveform (:lfo-waveform @synth-state)
-                                         new-state    (alter-state
-                                                       #(assoc % :lfo-waveform
-                                                               (if (= val 0)
-                                                                 ;; button press; switch to next waveform
-                                                                 (next-lfo-waveform (:lfo-waveform %))
-                                                                 ;; knob or slider; calculate waveform
-                                                                 (lfo-waveforms (int (* (/ val 128.0) (count lfo-waveforms)))))))
-                                         new-waveform (:lfo-waveform new-state)]
-                                     ;; Toggle lfo waveform
-                                     [[lfo-synth old-waveform 0] [lfo-synth new-waveform (:lfo-amp @synth-state)]]))
-                          (fn [val] (case (:lfo-waveform @synth-state)
-                                     :lfo-sin 60 :lfo-tri 75 :lfo-saw 89 :lfo-square 100 :lfo-rand 115 :lfo-slew-rand 130)))
+(defn lfo-contols []
+  [(Control. 546 398 :knob (mk-pos-only-knob "Rate")              lfo-synth    :lfo-rate
+             (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 3.0)))
 
-        ;; sub-octave osc waveform selector
-        (AdvancedControl. 290 46 :selector {:caption   "WAVE"
-                                            :ui-aux-fn (fn [] (shape (state :square-shape) 310 51)
-                                                              (shape (state :sin-shape)    310 65))}
-                          :sub-osc-waveform
-                          (fn [val] (let [old-waveform (:sub-osc-waveform @synth-state)
-                                         new-state    (alter-state
-                                                       #(assoc % :sub-osc-waveform
-                                                               (if (zero? val)
-                                                                 ;; button press; switch to next waveform
-                                                                 (next-sub-osc-waveform (:sub-osc-waveform %))
-                                                                 ;; knob or slider; calculate waveform
-                                                                 (sub-osc-waveforms (int (* (/ val 128.0) (count sub-osc-waveforms)))))))
-                                         new-waveform (:sub-osc-waveform new-state)]
-                                     ;; Toggle sub-osc waveform
-                                     [[synth-voices old-waveform 0] [synth-voices new-waveform (:sub-osc-amp @synth-state)]]))
-                          (fn [val] (case (:sub-osc-waveform @synth-state)
-                                     :sub-osc-square 0 :sub-osc-sin 16 -10)))
-        ;; envelope speed selector
-        (AdvancedControl. 690 103 :selector {:caption   "ENV Speed"
-                                             :ui-aux-fn (fn [] (text "Fast" 716 114)
-                                                               (text "Slow" 716 130))}
-                          :env-speed
-                          (fn [val] (let [old-speed (:env-speed @synth-state)
-                                         new-state  (alter-state
-                                                      #(assoc % :env-speed
-                                                              (if (zero? val)
-                                                                ;; button press; switch to next sped
-                                                                (case old-speed
-                                                                  :fast :slow
-                                                                  :slow :fast)
-                                                                ;; knob or slider; calculate speed
-                                                                ([:fast :slow] (int (* (/ val 128.0) (count [:fast :slow])))))))
-                                         new-speed  (:env-speed new-state)]
-                                     ;; Toggle env-speed
-                                     [[synth-voices :env-speed (case (:env-speed @synth-state)
-                                                                         :fast 1
-                                                                         :slow 10)]]))
-                          (fn [val] (case (:env-speed @synth-state)
-                                     :fast 0 :slow 16)))
+   (Control. 475 332 :knob (mk-plus-minus-knob "PWM")             synth-voices :lfo2pwm           (fn [val] (- (/ val 32.0) 1.98)))
+   (Control. 544 332 :knob (mk-plus-minus-knob "Pitch")           synth-voices :lfo2pitch         (fn [val] (- (/ val 2.0) 32.0)))
+   (Control. 612 332 :knob (mk-plus-minus-knob "Filter")          synth-voices :lfo2filter        (fn [val] (* (- val 64.0) 400.0)))
+   (Control. 681 332 :knob (mk-plus-minus-knob "Amp"
+                                                {:caption-dx -25
+                                                 :caption-dy -55}) synth-voices :lfo2amp           (fn [val] (- (/ val 32) 1.98)))
+   ;; LFO waveform knob
+   (AdvancedControl. 478 398 :knob {:caption   "Wave"
+                                    :ui-aux-fn #(doall
+                                                  (map-indexed
+                                                    (fn [i e] (apply shape 
+                                                                     (state e)
+                                                                     (selector-knob-label-pos 478 398 i)))
+                                                    [:sin-shape :tri-shape :saw-shape :square-shape
+                                                     :random-shape :random-slew-shape]))}
+                     :lfo-waveform
+                     (fn [val] (let [old-waveform (:lfo-waveform @synth-state)
+                                    new-state    (alter-state
+                                                  #(assoc % :lfo-waveform
+                                                          (if (= val 0)
+                                                            ;; button press; switch to next waveform
+                                                            (next-lfo-waveform (:lfo-waveform %))
+                                                            ;; knob or slider; calculate waveform
+                                                            (lfo-waveforms (int (* (/ val 128.0) (count lfo-waveforms)))))))
+                                    new-waveform (:lfo-waveform new-state)]
+                                ;; Toggle lfo waveform
+                                [[lfo-synth old-waveform 0] [lfo-synth new-waveform (:lfo-amp @synth-state)]]))
+                     (fn [val] (case (:lfo-waveform @synth-state)
+                                :lfo-sin 60 :lfo-tri 75 :lfo-saw 89 :lfo-square 100 :lfo-rand 115 :lfo-slew-rand 130)))
+   ;; lfo-arp sync selector
+   (AdvancedControl. 620 398 :selector {:caption   "Clock"
+                                        :ui-aux-fn (fn [] (text "Free" 645 410)
+                                                          (text "Sync" 645 426))}
+                     :lfo-arp-sync
+                     (fn [val] (let [last-val (:lfo-arp-sync @synth-state)
+                                    new-state (alter-state
+                                               #(assoc % :lfo-arp-sync
+                                                       (if (zero? val)
+                                                         ;; button press; switch to next val
+                                                         (case last-val
+                                                           0 1
+                                                           1 0)
+                                                         ;; knob or slider; calculate val
+                                                         ([0 1] (int (* (/ val 128.0) (count [0 1])))))))
+                                    new-val   (:lfo-arp-sync new-state)]
+                                ;; Toggle flag
+                                [[lfo-synth :lfo-arp-sync new-val]]))
+                     (fn [val] (case (:lfo-arp-sync @synth-state)
+                                0 0 1 16)))])
 
-        ;; sub-osc octave selector
-        (AdvancedControl. 290 106 :selector {:caption   "OCTAVE"
-                                             :ui-aux-fn (fn [] (text "-1" 315 119)
-                                                               (text "-2" 315 135))}
-                          :sub-osc-oct
-                          (fn [val] (let [old-oct   (:sub-osc-oct @synth-state)
-                                         new-state (alter-state
-                                                    #(assoc % :sub-osc-oct
-                                                            (if (zero? val)
-                                                              ;; button press; switch to next oct
-                                                              (case old-oct
-                                                                1 2
-                                                                2 1)
-                                                              ;; knob or slider; calculate waveform
-                                                              ([1 2] (int (* (/ val 128.0) (count [1 2])))))))
-                                         new-oct   (:sub-osc-oct new-state)]
-                                     ;; Toggle sub-osc octave
-                                     [[synth-voices :sub-osc-coeff (case (:sub-osc-oct @synth-state)
-                                                                         1 0.5
-                                                                         2 0.25)]]))
-                          (fn [val] (case (:sub-osc-oct @synth-state)
-                                     1 0 2 16)))
+(defn arp-controls []
+  [(Control. 885 332 :knob (mk-pos-only-knob "Tempo") arp-synth :arp-rate        (fn [val] (let [rate (/ val 5.0)]
+                                                                                                (println "arp-rate " (* (/ 60 8) rate) " bmp")
+                                                                                                rate)))
+   (Control. 829 398 :knob (mk-pos-only-knob "Swing") arp-synth :arp-swing-phase (fn [val] (* 360 (/ val 127.0))))
+   ;; Arp mode selector
+   (AdvancedControl. 742 398 :knob {:caption   "Mode"
+                                    :ui-aux-fn #(do
+                                                  (text-align :left)
+                                                  (doall
+                                                    (map-indexed
+                                                      (fn [i e](apply text e (selector-knob-label-pos 743 400 i)))
+                                                      ["Off" "Up" "Down" "Up/Dwn" "Rand"]))
+                                                  (text-align :center))}
+                     :arp-mode
+                     (fn [val] (let [old-mode    (:arp-mode @synth-state)
+                                     new-state   (alter-state
+                                                  #(assoc % :arp-mode
+                                                          (if (= val 0)
+                                                            ;; button press; switch to next mode
+                                                            (mod (inc old-mode) 5)
+                                                            ;; knob or slider; calculate mote
+                                                            (int (* (/ (inc val) 129.0) 5)))))
+                                    new-mode (:arp-mode new-state)]
+                                [[arp-synth :arp-mode new-mode]]))
+                     (fn [val] (case (:arp-mode @synth-state)
+                                0 62 1 75 2 85 3 98 4 109)))
 
-        ;; Sub-octave amount
-        (AdvancedControl. 280 265 :slider {} :sub-osc-amp
-                          (fn [val] (let [new-state (alter-state #(assoc % :sub-osc-amp (/ val 127.0)))]
-                                     [[synth-voices (:sub-osc-waveform @synth-state) (/ val 127.0)]]))
-                          (fn [val] (* 127.0 (:sub-osc-amp @synth-state))))
+   ;; Arp range selector
+   (AdvancedControl. 681 398 :knob {:caption   "Octave"
+                                    :ui-aux-fn #(doall
+                                                  (map-indexed
+                                                    (fn [i e](apply text e (selector-knob-label-pos 686 403 i)))
+                                                    ["1" "2" "3" "4"]))}
+                     :arp-range
+                     (fn [val] (let [old-range (:arp-range @synth-state)
+                                     new-state (alter-state
+                                                 #(assoc % :arp-range
+                                                         (if (= val 0)
+                                                           ;; button press; switch to next range
+                                                           (inc (mod old-range 4))
+                                                           ;; knob or slider; calculate range
+                                                           (inc (int (* (/ (inc val) 129.0) 4))))))
+                                    new-range  (:arp-range new-state)]
+                                [[arp-synth :arp-range new-range]]))
+                     (fn [val] (case (:arp-range @synth-state)
+                                1 60 2 75 3 88 4 101)))
 
-        ;; Mod wheel function
-        (AdvancedControl. 283 335 :selector {:caption   "MOD Wheel"
-                                             :ui-aux-fn (fn [] (text "Cutoff"  315 348)
-                                                               (text "Vibrato" 315 358)
-                                                               (text "LFOAmt"  315 368))}
-                          :mod-wheel-fn
-                          (fn [val] (let [old-fn   (:mod-wheel-fn @synth-state)
-                                         new-state (alter-state
-                                                   #(assoc % :mod-wheel-fn
-                                                            (if (zero? val)
-                                                              ;; button press; switch to next fn
-                                                              (next-mod-wheel-fn old-fn)
-                                                              ;; knob or slider; calc fn
-                                                              (mod-wheel-fns (int (* (/ val 128.0) (count mod-wheel-fns)))))))
-                                         new-fn    (:mod-wheel-fn new-state)]
-                                     []))
-                          (fn [val] (case  (:mod-wheel-fn @synth-state)
-                                     :cutoff 0 :vibrato 10 :lfo-amount 20)))
+   ;; Arp step selector
+   (AdvancedControl. 810 336 :knob {:caption   "Step"
+                                    :ui-aux-fn #(doall
+                                                  (map-indexed
+                                                    (fn [i e](apply text e (selector-knob-label-pos 820 340 i)))
+                                                    ["1/4" "1/8" "1/16" "1/4T" "1/8T" "1/16T"]))}
+                     :arp-range
+                     (fn [val] (let [old-step (:arp-step @synth-state)
+                                     new-state (alter-state
+                                                 #(assoc % :arp-step
+                                                         (if (= val 0)
+                                                           ;; button press; switch to next step
+                                                           (mod (inc old-step) 6)
+                                                           ;; knob or slider; calculate range
+                                                           (int (* (/ (inc val) 129.0) 6)))))
+                                    new-step  (:arp-step new-state)]
+                                [[arp-synth :arp-step new-step]]))
+                     (fn [val] (case (:arp-step @synth-state)
+                                0 65 1 75 2 84 3 98 4 111 5 125)))
+   ;; Arp tap tempo button
+   (AdvancedControl. 889 407 :button {:caption "Tap"} :arp-tap-tempo
+                     (fn [val] 
+                       (let [dt (- (now) (:arp-tap-time @synth-state))]
+                         (alter-state #(assoc % :arp-tap-time (now)))
+                         (if (< dt 2000)
+                           [[arp-synth :arp-rate (/ 1000 dt)]]
+                           [])))
+                     (fn [val] val))])
 
-        ;; Vibrato type selector
-        (AdvancedControl. 424 338 :selector {:ui-aux-fn (fn [] (shape (state :trill-up-shape)   445 345)
-                                                               (shape (state :sin-shape)        445 355)
-                                                               (shape (state :trill-down-shape) 445 365))}
-                          :vibrato-fn
-                          (fn [val] (let [old-fn    (:vibrato-fn @synth-state)
-                                          new-state (alter-state
-                                                      #(assoc % :vibrato-fn
-                                                              (if (zero? val)
-                                                                ;; button press; switch to next fn
-                                                                (next-vibrato-fn old-fn)
-                                                                ;; knob or slider; calc fn
-                                                                (vibrato-fns (int (* (/ val 128.0) (count vibrato-fns)))))))
-                                          new-fn    (:vibrato-fn new-state)
-                                          mod-wheel-pos (:mod-wheel-pos @synth-state)]
-                                      (case (:vibrato-fn @synth-state)
-                                        :vibrato    [[synth-voices :vibrato-amp (/ mod-wheel-pos 127.0)] 
-                                                     [synth-voices :vibrato-trill 0]]
-                                        :trill-up   [[synth-voices :vibrato-amp 0.0]
-                                                     [synth-voices :vibrato-trill (int (/ mod-wheel-pos 10))]]
-                                        :trill-down [[synth-voices :vibrato-amp 0.0]
-                                                     [synth-voices :vibrato-trill (- (int (/ mod-wheel-pos 10)))]])))
-                          (fn [val] (case (:vibrato-fn @synth-state)
-                                      :vibrato 10
-                                      :trill-up 0
-                                      :trill-down 20)))
+(defn volume-controls []
+  [(Control. 885 38 :knob (mk-pos-only-knob "Master Volume") mb-synth :volume       (fn [val] (/ val 12.0)))
+   (Control. 750 38 :knob (mk-pos-only-knob "Feedback Amt")  mb-synth :feedback-amp (fn [val] (/ val 127.0)))])
 
-        ;; Ptch bend wheel
-        (AdvancedControl. 100 165 :wheel {:caption "Pitch"} :pitch-wheel
-                          ;; bend fn val:127->1.0 val:64->0.0 val:0->-1.0
-                          (fn [val] [[synth-voices :bend (- (* 2.0 (/ val 127.0)) 1.0)]])
-                          (fn [val] val))
-        ;; Mod-wheel
-        (AdvancedControl. 170 165 :wheel {:caption "Modulation"} :mod-wheel
-                          (fn [val] (alter-state #(assoc % :mod-wheel-pos val))
-                                    (case (:mod-wheel-fn @synth-state)
-                                     :cutoff       [[synth-voices :cutoff (* (- val 10) 100.0)]]
-                                     :vibrato (case (:vibrato-fn @synth-state)
-                                                :vibrato    [[synth-voices :vibrato-amp (/ val 127.0)]
-                                                             [synth-voices :vibrato-trill 0]]
-                                                :trill-up   [[synth-voices :vibrato-amp 0.0]
-                                                             [synth-voices :vibrato-trill (int (/ val 10))]]
-                                                :trill-down [[synth-voices :vibrato-amp 0.0]
-                                                             [synth-voices :vibrato-trill (- (int (/ val 10)))]])
-                                     :lfo-amount (do
-                                                   (alter-state #(assoc % :lfo-amp (/ val 127.0)))
-                                                   [[lfo-synth (:lfo-waveform @synth-state) (/ val 127.0)]])))
-                          (fn [val] val))
+(defn wheel-controls []
+   ;; Ptch bend wheel
+  [(AdvancedControl. 100 165 :wheel {:caption "Pitch"} :pitch-wheel
+                     ;; bend fn val:127->1.0 val:64->0.0 val:0->-1.0
+                     (fn [val] [[synth-voices :bend (- (* 2.0 (/ val 127.0)) 1.0)]])
+                     (fn [val] val))
+   ;; Mod-wheel
+   (AdvancedControl. 170 165 :wheel {:caption "Modulation"} :mod-wheel
+                     (fn [val] (alter-state #(assoc % :mod-wheel-pos val))
+                               (case (:mod-wheel-fn @synth-state)
+                                :cutoff       [[synth-voices :cutoff (* (- val 10) 100.0)]]
+                                :vibrato (case (:vibrato-fn @synth-state)
+                                           :vibrato    [[synth-voices :vibrato-amp (/ val 127.0)]
+                                                        [synth-voices :vibrato-trill 0]]
+                                           :trill-up   [[synth-voices :vibrato-amp 0.0]
+                                                        [synth-voices :vibrato-trill (int (/ val 10))]]
+                                           :trill-down [[synth-voices :vibrato-amp 0.0]
+                                                        [synth-voices :vibrato-trill (- (int (/ val 10)))]])
+                                :lfo-amount (do
+                                              (alter-state #(assoc % :lfo-amp (/ val 127.0)))
+                                              [[lfo-synth (:lfo-waveform @synth-state) (/ val 127.0)]])))
+                     (fn [val] val))])
 
-        ;; Arp mode selector
-        (AdvancedControl. 742 398 :knob {:caption   "Mode"
-                                         :ui-aux-fn #(do
-                                                       (text-align :left)
-                                                       (doall
-                                                         (map-indexed
-                                                           (fn [i e](apply text e (selector-knob-label-pos 743 400 i)))
-                                                           ["Off" "Up" "Down" "Up/Dwn" "Rand"]))
-                                                       (text-align :center))}
-                          :arp-mode
-                          (fn [val] (let [old-mode    (:arp-mode @synth-state)
-                                          new-state   (alter-state
-                                                       #(assoc % :arp-mode
-                                                               (if (= val 0)
-                                                                 ;; button press; switch to next mode
-                                                                 (mod (inc old-mode) 5)
-                                                                 ;; knob or slider; calculate mote
-                                                                 (int (* (/ (inc val) 129.0) 5)))))
-                                         new-mode (:arp-mode new-state)]
-                                     [[arp-synth :arp-mode new-mode]]))
-                          (fn [val] (case (:arp-mode @synth-state)
-                                     0 62 1 75 2 85 3 98 4 109)))
+(defn mod-controls []
+  [(Control. 60  491 :knob (mk-pos-only-knob "Level")  mb-synth :delay-mix      (fn [val] (/ val 127.0)))
+   (Control. 130 491 :knob (mk-pos-only-knob "F.Back") mb-synth :delay-feedback (fn [val] (/ val 127.0)))
+   (Control. 200 491 :knob (mk-pos-only-knob "Time")   mb-synth :delay-time     (fn [val] (/ val 127.0)))
 
-        ;; Arp range selector
-        (AdvancedControl. 681 398 :knob {:caption   "Octave"
-                                         :ui-aux-fn #(doall
-                                                       (map-indexed
-                                                         (fn [i e](apply text e (selector-knob-label-pos 686 403 i)))
-                                                         ["1" "2" "3" "4"]))}
-                          :arp-range
-                          (fn [val] (let [old-range (:arp-range @synth-state)
-                                          new-state (alter-state
-                                                      #(assoc % :arp-range
-                                                              (if (= val 0)
-                                                                ;; button press; switch to next range
-                                                                (inc (mod old-range 4))
-                                                                ;; knob or slider; calculate range
-                                                                (inc (int (* (/ (inc val) 129.0) 4))))))
-                                         new-range  (:arp-range new-state)]
-                                     [[arp-synth :arp-range new-range]]))
-                          (fn [val] (case (:arp-range @synth-state)
-                                     1 60 2 75 3 88 4 101)))
+   (Control. 60  566 :knob (mk-pos-only-knob "Mix")    mb-synth :reverb-mix     (fn [val] (/ val 127.0)))
+   (Control. 130 566 :knob (mk-pos-only-knob "Size")   mb-synth :reverb-size    (fn [val] (/ val 127.0)))
+   (Control. 200 566 :knob (mk-pos-only-knob "Damp")   mb-synth :reverb-damp    (fn [val] (/ val 127.0)))])
 
-        ;; Arp step selector
-        (AdvancedControl. 810 336 :knob {:caption   "Step"
-                                         :ui-aux-fn #(doall
-                                                       (map-indexed
-                                                         (fn [i e](apply text e (selector-knob-label-pos 820 340 i)))
-                                                         ["1/4" "1/8" "1/16" "1/4T" "1/8T" "1/16T"]))}
-                          :arp-range
-                          (fn [val] (let [old-step (:arp-step @synth-state)
-                                          new-state (alter-state
-                                                      #(assoc % :arp-step
-                                                              (if (= val 0)
-                                                                ;; button press; switch to next step
-                                                                (mod (inc old-step) 6)
-                                                                ;; knob or slider; calculate range
-                                                                (int (* (/ (inc val) 129.0) 6)))))
-                                         new-step  (:arp-step new-state)]
-                                     [[arp-synth :arp-step new-step]]))
-                          (fn [val] (case (:arp-step @synth-state)
-                                     0 65 1 75 2 84 3 98 4 111 5 125)))
+(defn get-controls 
+  ([]
+   (get-controls @show-modulation-controls?))
+  ([show-modulation-controls?]
+    (let [get-controls-helper
+            (memoize
+              (fn [show-mod-controls?]
+                (map (fn [c] (if (= (type c) Control)
+                                 (control->advanced-control c)
+                                 c))
+                     (concat (osc-controls)
+                             (filter-controls)
+                             (osc-mix-controls)
+                             (filter-asdr-controls)
+                             (amp-adsr-controls)
+                             (misc-controls)
+                             (lfo-contols)
+                             (arp-controls)
+                             (volume-controls)
+                             (wheel-controls)
+                         (if show-mod-controls?
+                             (mod-controls)
+                             [])))))]
+      (get-controls-helper show-modulation-controls?))))
 
-        ;; lfo-arp sync selector
-        (AdvancedControl. 620 398 :selector {:caption   "Clock"
-                                             :ui-aux-fn (fn [] (text "Free" 645 410)
-                                                               (text "Sync" 645 426))}
-                          :lfo-arp-sync
-                          (fn [val] (let [last-val (:lfo-arp-sync @synth-state)
-                                         new-state (alter-state
-                                                    #(assoc % :lfo-arp-sync
-                                                            (if (zero? val)
-                                                              ;; button press; switch to next val
-                                                              (case last-val
-                                                                0 1
-                                                                1 0)
-                                                              ;; knob or slider; calculate val
-                                                              ([0 1] (int (* (/ val 128.0) (count [0 1])))))))
-                                         new-val   (:lfo-arp-sync new-state)]
-                                     ;; Toggle flag
-                                     [[lfo-synth :lfo-arp-sync new-val]]))
-                          (fn [val] (case (:lfo-arp-sync @synth-state)
-                                     0 0 1 16)))
-
-        ;; Arp tap tempo button
-        (AdvancedControl. 889 407 :button {:caption "Tap"} :arp-tap-tempo
-                          (fn [val] 
-                            (let [dt (- (now) (:arp-tap-time @synth-state))]
-                              (alter-state #(assoc % :arp-tap-time (now)))
-                              (if (< dt 2000)
-                                [[arp-synth :arp-rate (/ 1000 dt)]]
-                                [])))
-                          (fn [val] val))
-        ]))
-
-(def ctl->control (into {} (map (fn [e] {(:name e) e}) controls)))
+;; populate the map with ALL the controls.
+(def ctl->control (into {} (map (fn [e] {(:name e) e}) (get-controls true))))
 
 (def ui-keys
   [;; black keys
@@ -888,7 +941,9 @@
 
   (ctl synth-voices :gate 0)
   (set-state! :background-img              (load-image "background.png")
+              :mod-panel-img               (load-image "mod-panel.png")
               :button-img                  (load-image "button.png")
+              :small-button-img            (load-image "small-button.png")
               :knob-img                    (load-image "knob.png")
               :knob-background-img         (load-image "knob-background.png")
               :slider-img                  (load-image "slider.png")
@@ -929,7 +984,18 @@
     (tint 255 255 255)
     (image overtone-text-img 65 20)
     (image mini-beast-text-img 125 50)
-    (doall (map draw-control controls))
+    (doall (map (fn [k] (draw-key (first (:coords k))
+                                  (second (:coords k))
+                                  (:color k)
+                                  (some (fn [v] (= (:note v) (note (:note k)))) @voices)))
+                (sort-by (fn [k] (case (:color k)
+                                         :white 0
+                                         :black 1)) ui-keys)))
+    (tint (color 255 255 255 255))
+    (when @show-modulation-controls?
+      ; draw background
+      (image (state :mod-panel-img) 50 472))
+    (doall (map draw-control (get-controls)))
     (let [lfo         (or @(-> lfo-synth :taps :lfo) 0)
           lfo-tint    (color 255 0 0 (* 255 lfo))
           amp         (apply max 0 (map (fn [s] @(-> s :taps :amp-adsr)) synth-voices))
@@ -950,14 +1016,6 @@
                    [705 170 filter-tint]
                    [910 170 amp-tint]
                    [898 383 arp-tint]]))
-      (tint (color 255 255 255 255))
-      (doall (map (fn [k] (draw-key (first (:coords k))
-                                    (second (:coords k))
-                                    (:color k)
-                                    (some (fn [v] (= (:note v) (note (:note k)))) @voices)))
-                  (sort-by (fn [k] (case (:color k)
-                                           :white 0
-                                           :black 1)) ui-keys)))
       (tint (color 255 255 255 255)))))
 
 (defn in-box?
@@ -990,20 +1048,22 @@
   Nil if no control occupies the space."
   [x y]
   (first (filter (fn [c] (case (:type c)
-                           :knob     (< (dist x y (+ (:x c) 25) (+ (:y c) 25)) 30)
-                           :button   (in-box? x y (:x c) (:y c)  (+ (:x c) 45) (+ (:y c) 37))
-                           :slider   (in-box? x y (:x c) (- (:y c) 70) (+ (:x c) 26) (+ (:y c) 31))
-                           :selector (in-box? x y (:x c) (:y c) (+ (:x c) 14) (+ (:y c) 32))
-                           :wheel    (in-box? x y (:x c) (:y c) (+ (:x c) 25) (+ (:y c) 137))))
-                 controls)))
+                           :knob           (< (dist x y (+ (:x c) 25) (+ (:y c) 25)) 30)
+                           :small-button   (in-box? x y (:x c) (:y c)  (+ (:x c) 43) (+ (:y c) 22))
+                           :button         (in-box? x y (:x c) (:y c)  (+ (:x c) 45) (+ (:y c) 37))
+                           :slider         (in-box? x y (:x c) (- (:y c) 70) (+ (:x c) 26) (+ (:y c) 31))
+                           :selector       (in-box? x y (:x c) (:y c) (+ (:x c) 14) (+ (:y c) 32))
+                           :wheel          (in-box? x y (:x c) (:y c) (+ (:x c) 35) (+ (:y c) 137))))
+                 (get-controls))))
 
 (defn mouse-clicked []
   ;; toggle selected-control on mouse click
   (if (nil? @selected-control)
     (let [x (mouse-x)
           y (mouse-y)
-          c (control-at-xy x y) ]
+          c (control-at-xy x y)]
       (println "click at [" x ", " y "]")
+      (println "found control " c)
       (reset! selected-control c))
     (reset! selected-control nil)))
 
