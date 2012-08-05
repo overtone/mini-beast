@@ -82,7 +82,8 @@
    osc-saw           {:default 1.0    :doc "osc saw amount"}
    osc-square        {:default 0.0    :doc "osc square amount"}
    osc-tri           {:default 0.0    :doc "osc triangle amount"}
-   osc-noise         {:default 0.0    :doc "osc nouse amount"}
+   osc-noise         {:default 0.0    :doc "osc noise amount"}
+   osc-audio-in      {:default 0.0    :doc "audio-in amount"}
    sub-osc-sin       {:default 0.0    :doc "sin sub-oscillator"}
    sub-osc-square    {:default 0.0    :doc "square sub-oscillator"}
    sub-osc-coeff     {:default 0.5    :doc "0.5 = -1 octave 0.25 = -2 octave"}
@@ -141,7 +142,8 @@
                            (* osc-tri (/ 1.0 TRI-FOLD-THRESH) (fold2 (lf-tri note-freq) TRI-FOLD-THRESH))
                            (* osc-noise (white-noise))
                            (* sub-osc-sin (sin-osc sub-note-freq))
-                           (* sub-osc-square (square sub-note-freq (* LFO lfo2pwm))))
+                           (* sub-osc-square (square sub-note-freq (* LFO lfo2pwm)))
+                           (* osc-audio-in (sound-in)))
 
         VCO+fback       (+ VCO 0);(* feedback-amp (local-in 1))) 
         vcf-freq        (max 20 (+ cutoff

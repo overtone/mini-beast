@@ -554,10 +554,11 @@
                                 :fast 0 :slow 16)))])
 
 (defn osc-mix-controls []
-  [(Control.         320 265 :slider {} synth-voices :osc-saw    (fn [val] (/ val 127.0)))
-   (Control.         360 265 :slider {} synth-voices :osc-square (fn [val] (/ val 127.0)))
-   (Control.         400 265 :slider {} synth-voices :osc-tri    (fn [val] (/ val 127.0)))
-   (Control.         440 265 :slider {} synth-voices :osc-noise  (fn [val] (/ val 127.0)))
+  [(Control.         320 265 :slider {} synth-voices :osc-saw     (fn [val] (/ val 127.0)))
+   (Control.         360 265 :slider {} synth-voices :osc-square  (fn [val] (/ val 127.0)))
+   (Control.         400 265 :slider {} synth-voices :osc-tri     (fn [val] (/ val 127.0)))
+   (Control.         440 265 :slider {} synth-voices :osc-noise   (fn [val] (/ val 127.0)))
+   (Control.         480 265 :slider {} synth-voices :osc-audio-in(fn [val] (/ val 127.0)))
    ;; Sub-octave amount
    (AdvancedControl. 280 265 :slider {} :sub-osc-amp
                      (fn [val] (let [new-state (alter-state #(assoc % :sub-osc-amp (/ val 127.0)))]
