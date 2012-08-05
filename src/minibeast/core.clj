@@ -1,9 +1,12 @@
 (ns minibeast.core
-  (:import (javax.swing JFileChooser JMenuBar JMenu JMenuItem)
-           (javax.swing.filechooser FileNameExtensionFilter)
-           (java.awt.event ActionListener)
-           (java.io File))
+  (:import [javax.swing JFileChooser JMenuBar JMenu JMenuItem]
+           [javax.swing.filechooser FileNameExtensionFilter]
+           [java.awt.event ActionListener]
+           [java.io File]
+           [com.apple.eawt.Application]
+           [java.awt.Toolkit])
   (:use [overtone.live :exclude (mouse-button mouse-x mouse-y)]
+        [overtone.helpers.system :only [mac-os?]]
         [quil.core :exclude (abs acos asin atan atan2 ceil cos
                                  exp line log
                                  ;;  mouse-button mouse-x mouse-y
@@ -1186,7 +1189,7 @@
                                   1.0)
                                 (- y (pmouse-y)))
             control-name     (:name c)
-            last-val         (or (-> @ui-state @selected-split control-name) 0)
+            last-val         (or (get (get @ui-state @selected-split) control-name) 0)
             ;; constrain new-val to 0-127.0
             new-val          (constrain (- last-val dy) 0.0 127.0)
             synth-ctl-vals   ((:synth-fn c) new-val)]
@@ -1280,6 +1283,15 @@
                  handle-control
                  ::bend-event-handler))
 
+;; Redefine from overtone/src/overtone/libs/app_icon.clj on account of it being defn- ed there.
+(defn- set-osx-icon
+  [icon]
+  (try
+    (.setDockIconImage (com.apple.eawt.Application/getApplication) icon)
+  (catch Exception e
+    false))
+  true)
+
 (defn start-gui
   []
   (let [listener (proxy [ActionListener] []
@@ -1307,10 +1319,13 @@
                   :key-released key-released
                   :decor true
                   :size [1036 850])
-        frame    (-> sk meta :target-obj deref)]
+        frame    (-> sk meta :target-obj deref)
+        icon     (.createImage (java.awt.Toolkit/getDefaultToolkit) "data/icon.png")]
     (doto frame
       (.setJMenuBar mb)
-      (.setVisible true))))
+      (.setVisible true))
+    (when (mac-os?)
+      (set-osx-icon icon))))
 
 (defn -main
   [& args]
