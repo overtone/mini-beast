@@ -15,24 +15,45 @@
         [minibeast.mbsynth]))
 
 ;; Create some synth instruments to be used by voices.
-(def lfo-bus (control-bus))
-(def arp-trig-bus (control-bus))
-(def arp-note-bus (control-bus))
-(def voice-bus (audio-bus))
+(def lfo-bus-a (control-bus))
+(def arp-trig-bus-a (control-bus))
+(def arp-note-bus-a (control-bus))
+(def voice-bus-a (audio-bus))
 
-(def arp-synth (darp :position :head arp-trig-bus arp-note-bus))
-(def lfo-synth (LFO :position :after
-                    :target arp-synth
-                    lfo-bus arp-trig-bus))
-(def synth-voices (doall (map (fn [_]
+(def lfo-bus-b (control-bus))
+(def arp-trig-bus-b (control-bus))
+(def arp-note-bus-b (control-bus))
+(def voice-bus-b (audio-bus))
+
+(def arp-synth-a (darp :position :head arp-trig-bus-a arp-note-bus-a))
+(def arp-synth-b (darp :position :head arp-trig-bus-b arp-note-bus-b))
+
+(def lfo-synth-a (LFO :position :after
+                    :target arp-synth-a
+                    lfo-bus-a arp-trig-bus-a))
+(def lfo-synth-b (LFO :position :after
+                    :target arp-synth-b
+                    lfo-bus-b arp-trig-bus-b))
+
+(def synth-voices-a (doall (map (fn [_]
                                 (voice :position :after
-                                       :target lfo-synth
-                                       voice-bus
-                                       lfo-bus
-                                       arp-trig-bus
-                                       arp-note-bus))
-                              (range 8))))
-(def mb-synth (mbsynth :position :tail voice-bus))
+                                       :target lfo-synth-a
+                                       voice-bus-a
+                                       lfo-bus-a
+                                       arp-trig-bus-a
+                                       arp-note-bus-a))
+                              (range 4))))
+(def synth-voices-b (doall (map (fn [_]
+                                (voice :position :after
+                                       :target lfo-synth-b
+                                       voice-bus-b
+                                       lfo-bus-b
+                                       arp-trig-bus-b
+                                       arp-note-bus-b))
+                              (range 4))))
+
+(def mb-synth-a (mbsynth :position :tail voice-bus-a))
+(def mb-synth-b (mbsynth :position :tail voice-bus-b))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Internal synth state
@@ -73,20 +94,44 @@
 ;; to the operation of the ui of the synth.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defonce ui-state                   (atom {}))
+(defonce ui-state                   (atom {:a {} :b {}}))
 (defonce selected-control           (atom nil))
 (defonce dragged-control            (atom nil))
 (defonce dev-chan-note-cmd->control (atom {}))
 (defonce mouse-pressed-note         (atom nil))
 (defonce show-modulation-controls?  (atom true))
+(defonce selected-split             (atom :a))
+(defonce split-note                 (atom 60))
+
+(defn arp-synth []
+  (case @selected-split
+    :a arp-synth-a
+    :b arp-synth-b))
+
+(defn lfo-synth []
+  (case @selected-split
+    :a lfo-synth-a
+    :b lfo-synth-b))
+
+(defn synth-voices []
+  (case @selected-split
+    :a synth-voices-a
+    :b synth-voices-b))
+
+(defn mb-synth []
+  (case @selected-split
+    :a mb-synth-a
+    :b mb-synth-b))
 
 ;; Keep a record of the last eight key presses
 ;; in a map of {:synth s, :note n}
-(def voices-max 8)
-(defonce voices (ref ()))
+(def voices-max 4)
+(defonce voices-a (ref ()))
+(defonce voices-b (ref ()))
 
 (defn update-ui-state [m]
-  (swap! ui-state merge m))
+  (println "update-ui-state " m)
+  (swap! ui-state (partial merge-with merge) {@selected-split m}))
 
 (defn ctl-ui-and-synth
   "Control ui and synth parameters
@@ -152,7 +197,7 @@
      (ref-set q (concat t f))
      (first (s true)))))
 
-(defn getsynth [note]
+(defn getsynth [note voices]
   "Find a free synth or reclaim an old one, add the note and synth to
   the voices list and return the synth that was free or reclaimed."
   (dosync
@@ -161,7 +206,9 @@
            new-voice (assoc voice :note note)]
        (queue voices new-voice)
        (:synth new-voice))
-     (let [first-unused-synth (first (difference (set synth-voices) (map (fn [e] (:synth e)) @voices)))
+     (let [synth-voices (if (< note @split-note) synth-voices-a synth-voices-b)
+           first-unused-synth (first (difference (set synth-voices)
+                                                 (map (fn [e] (:synth e)) @voices)))
            new-voice          {:synth first-unused-synth :note note}]
        (queue voices new-voice)
        (:synth new-voice)))))
@@ -170,19 +217,23 @@
 ;; Find a synth and turn it on. Turn off an old synth if we need to free one up.
 (defn keydown [note velocity]
   (dosync
-    (if-not (some #(= (:note %) note) @voices)
-      (let [synth (getsynth note)]
-        ;; turn off the old note. Maybe this is a reused synth
-        (ctl synth :gate 0.0)
-        ;; turn on the new note
-        (ctl synth :note note)
-        (ctl synth :velocity velocity)
-        (ctl synth :gate 1.0)))))
+    (let [voices (if (< note @split-note) voices-a voices-b)]
+      (if-not (some #(= (:note %) note) @voices)
+        (let [synth (getsynth note voices)]
+          (println "playing " note  " with synth " (:id synth))
+          ;; turn off the old note. Maybe this is a reused synth
+          (ctl synth :gate 0.0)
+          ;; turn on the new note
+          (ctl synth :note note)
+          (ctl synth :velocity velocity)
+          (ctl synth :gate 1.0))))))
 
 ;; Find a synth to turn off
 (defn keyup [note]
-  (if-let [voice (remove-first-match #(= (:note %) note) voices)]
-    (ctl (:synth voice) :gate 0.0)))
+  (let [split (if (< note @split-note) :a :b)
+        voices (case split :a voices-a :b voices-b)]
+    (if-let [voice (remove-first-match #(= (:note %) note) voices)]
+      (ctl (:synth voice) :gate 0.0))))
 
 (defn handle-control
   "Typically called with an incoming MIDI control message."
@@ -205,7 +256,7 @@
       ;; find the synth parameter this control controls
       (let [synth-ctl-vals   ((:synth-fn matched-control) vel)]
         (doall (map (fn [synth-ctl-val]
-                      (let [synths       (first synth-ctl-val)
+                      (let [synths       ((first synth-ctl-val))
                             synth-ctl    (second synth-ctl-val)
                             synth-val    (last synth-ctl-val)
                             control-name (:name matched-control)
@@ -394,7 +445,7 @@
 
 (defn draw-control [control]
   (let [selected? (= (:name @selected-control) (:name control))
-        ui-val    (or ((:name control) @ui-state) 0)
+        ui-val    (or ((:name control) (@selected-split @ui-state)) 0)
         args      (conj ((juxt :x :y #((:ui-fn %) ui-val)) control) selected?)
         ui-hints  (:ui-hints control)]
     (case (:type control)
@@ -800,7 +851,34 @@
 
    (Control. 60  566 :knob (mk-pos-only-knob "Mix")    mb-synth :reverb-mix     (fn [val] (/ val 127.0)))
    (Control. 130 566 :knob (mk-pos-only-knob "Size")   mb-synth :reverb-size    (fn [val] (/ val 127.0)))
-   (Control. 200 566 :knob (mk-pos-only-knob "Damp")   mb-synth :reverb-damp    (fn [val] (/ val 127.0)))])
+   (Control. 200 566 :knob (mk-pos-only-knob "Damp")   mb-synth :reverb-damp    (fn [val] (/ val 127.0)))
+   
+   (AdvancedControl. 70 652 :selector {:caption "Split Select"
+                                       :ui-aux-fn (fn [] (text "Left"  96 664)
+                                                         (text "Right" 96 680))}
+                     :selected-split
+                     (fn [val] (do
+                                 (reset! selected-split
+                                         (case @selected-split
+                                            :a :b
+                                            :b :a))
+                                 []))
+                     (fn [val] (case @selected-split
+                                :a 0 :b 16)))
+   (AdvancedControl. 120 642 :knob {:caption "Split Note"
+                                    :pos-indicator? true
+                                    :ui-aux-fn (fn [] (fill (color 0 0 0 255))
+                                                      (rect 180 658 40 24)
+                                                      (fill (color 255 0 0 255))
+                                                      (text-size 16)
+                                                      (text (str (find-note-name (note @split-note))) 199 676)
+                                                      (text-size 8)
+                                                      (fill (color 255 255 255 255)))}
+                    :split-note
+                    (fn [val] (do
+                                (reset! split-note val)
+                                []))
+                    (fn [val] val))])
 
 (defn octave-controls []
   [(AdvancedControl. 100 392 :small-button {:caption "Down"} :octave-down
@@ -906,7 +984,7 @@
                   (let [control    (ctl->control k)
                         synth-ctl-vals ((:synth-fn control) v)]
                     (doall (map (fn [synth-ctl-val]
-                                  (let [synths     (first synth-ctl-val)
+                                  (let [synths     ((first synth-ctl-val))
                                         synth-ctl  (second synth-ctl-val)
                                         synth-val  (last synth-ctl-val)]
                                     (if (= k :sub-osc-amp)
@@ -951,8 +1029,6 @@
   (background 0)
   ;; load the most bad-est preset possible!
   (load-synth-settings-from-file "./presets/way-huge.patch")
-
-  (ctl synth-voices :gate 0)
   (set-state! :background-img              (load-image "background.png")
               :mod-panel-img               (load-image "mod-panel.png")
               :button-img                  (load-image "button.png")
@@ -1000,7 +1076,7 @@
     (doall (map (fn [k] (draw-key (first (:coords k))
                                   (second (:coords k))
                                   (:color k)
-                                  (some (fn [v] (= (:note v) (note (:note k)))) @voices)))
+                                  (some (fn [v] (= (:note v) (note (:note k)))) (concat @voices-a @voices-b))))
                 (sort-by (fn [k] (case (:color k)
                                          :white 0
                                          :black 1)) ui-keys)))
@@ -1009,13 +1085,13 @@
       ; draw background
       (image (state :mod-panel-img) 50 472))
     (doall (map draw-control (get-controls)))
-    (let [lfo              (or @(-> lfo-synth :taps :lfo) 0)
+    (let [lfo              (or @(-> (lfo-synth) :taps :lfo) 0)
           lfo-tint         (color 255 0 0 (* 255 lfo))
-          amp              (apply max 0 (map (fn [s] @(-> s :taps :amp-adsr)) synth-voices))
+          amp              (apply max 0 (map (fn [s] @(-> s :taps :amp-adsr)) (concat synth-voices-a synth-voices-b)))
           amp-tint         (color 0 255 0 (* 255 amp))
-          fil              (apply max 0 (map (fn [s] @(-> s :taps :filter-adsr)) synth-voices))
+          fil              (apply max 0 (map (fn [s] @(-> s :taps :filter-adsr)) (concat synth-voices-a synth-voices-b)))
           filter-tint      (color 0 255 0 (* 255 fil))
-          arp              (or @(-> arp-synth :taps :arp) 0)
+          arp              (or @(-> (arp-synth) :taps :arp) 0)
           arp-tint         (color 255 0 0 (* 255 arp))
           off-tint         (color 65 65 65 255)
           down-2-oct-tint  (color 255 0   0 (if (= -2 (:octave-transpose @synth-state)) 255 66))
@@ -1110,13 +1186,13 @@
                                   1.0)
                                 (- y (pmouse-y)))
             control-name     (:name c)
-            last-val         (or (get @ui-state control-name) 0)
+            last-val         (or (-> @ui-state @selected-split control-name) 0)
             ;; constrain new-val to 0-127.0
             new-val          (constrain (- last-val dy) 0.0 127.0)
             synth-ctl-vals   ((:synth-fn c) new-val)]
         (when (not-any? (:type c) [:button :small-button])
           (doall (map (fn [synth-ctl-val]
-                        (let [synths       (first synth-ctl-val)
+                        (let [synths       ((first synth-ctl-val))
                               synth-ctl    (second synth-ctl-val)
                               synth-val    (last synth-ctl-val)
                               ui-val       ((:ui-fn c) new-val)]
