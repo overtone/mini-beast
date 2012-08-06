@@ -980,7 +980,7 @@
 (defn load-synth-settings-from-file [path]
   (let [patch (-> path slurp read-string)]
     ;; reset the ui and synth to pre-file-loaded values
-    (reset! ui-state {})
+    (swap! ui-state merge {@selected-split {}})
     (reset-synth-defaults mbsynth)
     (doall (map (fn [[k v]]
                   (println "Setting " k)
@@ -1017,7 +1017,7 @@
         retval      (.showSaveDialog filechooser nil)]
     (if (= retval JFileChooser/APPROVE_OPTION)
       (let [path (-> filechooser .getSelectedFile .getPath)]
-        (->> @ui-state pr-str (spit path))))))
+        (->> (get @ui-state @selected-split) pr-str (spit path))))))
 
 (defn menuitem-selected [event]
   (case (.getActionCommand event)
