@@ -880,7 +880,7 @@
                                                       (fill (color 255 255 255 255)))}
                     :split-note
                     (fn [val] (do
-                                (reset! split-note val)
+                                (reset! split-note (int val))
                                 []))
                     (fn [val] val))])
 
@@ -1208,13 +1208,15 @@
               last-val         (or (get (get @ui-state @selected-split) control-name) 0)
               ;; constrain new-val to 0-127.0
               new-val          (constrain (- last-val dy) 0.0 127.0)
-              synth-ctl-vals   ((:synth-fn c) new-val)]
+              synth-ctl-vals   ((:synth-fn c) new-val)
+              ui-val           ((:ui-fn c) new-val)]
+          (println "last-val " last-val " new-val " new-val)
           (when (not-any? (:type c) [:button :small-button])
+            (update-ui-state {control-name ui-val})
             (doall (map (fn [synth-ctl-val]
                           (let [synths       ((first synth-ctl-val))
                                 synth-ctl    (second synth-ctl-val)
-                                synth-val    (last synth-ctl-val)
-                                ui-val       ((:ui-fn c) new-val)]
+                                synth-val    (last synth-ctl-val)]
                             (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctl " ui-val " ui-val)
                             (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals))))))))
 
