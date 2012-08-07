@@ -686,7 +686,8 @@
                      (fn [val]
                        (if (zero? val)
                          (swap! show-modulation-controls? not)
-                         (reset! show-modulation-controls? (> val 64.0))))
+                         (reset! show-modulation-controls? (> val 64.0)))
+                       [])
                      (fn [val] 0))])
 
 (defn lfo-contols []
@@ -1165,42 +1166,54 @@
 
 (defn mouse-clicked []
   ;; toggle selected-control on mouse click
-  (if (nil? @selected-control)
-    (let [x (mouse-x)
-          y (mouse-y)
-          c (control-at-xy x y)]
-      (println "click at [" x ", " y "]")
-      (println "found control " c)
-      (reset! selected-control c))
-    (reset! selected-control nil)))
+  (case (mouse-button)
+    :left (if-let [matched-control (control-at-xy (mouse-x) (mouse-y))]
+            ;; find the synth parameter this control controls
+            (let [synth-ctl-vals   ((:synth-fn matched-control) 0)]
+              (doall (map (fn [synth-ctl-val]
+                            (let [synths       ((first synth-ctl-val))
+                                  synth-ctl    (second synth-ctl-val)
+                                  synth-val    (last synth-ctl-val)
+                                  control-name (:name matched-control)
+                                  ui-val       ((:ui-fn matched-control) 0)]
+                              (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals))))
+    :right (if (nil? @selected-control)
+             (let [x (mouse-x)
+                   y (mouse-y)
+                   c (control-at-xy x y)]
+               (println "click at [" x ", " y "]")
+               (println "found control " c)
+               (reset! selected-control c))
+             (reset! selected-control nil))))
 
 (defn mouse-dragged []
   "For dragging controls around using mouse"
-  (let [x            (mouse-x)
-        y            (mouse-y)]
-    (when-let [c (if (nil? @dragged-control)
-                   (reset! dragged-control (control-at-xy x y))
-                   @dragged-control)]
-        ;; move sliders 1-to-1 with the ui (* 1/0.6)
-        ;; move selectors at an increased rate (2x)
-      (let [dy               (* (case (:type c)
-                                  :slider (/ 1.0 0.6)
-                                  :selector 2.0
-                                  1.0)
-                                (- y (pmouse-y)))
-            control-name     (:name c)
-            last-val         (or (get (get @ui-state @selected-split) control-name) 0)
-            ;; constrain new-val to 0-127.0
-            new-val          (constrain (- last-val dy) 0.0 127.0)
-            synth-ctl-vals   ((:synth-fn c) new-val)]
-        (when (not-any? (:type c) [:button :small-button])
-          (doall (map (fn [synth-ctl-val]
-                        (let [synths       ((first synth-ctl-val))
-                              synth-ctl    (second synth-ctl-val)
-                              synth-val    (last synth-ctl-val)
-                              ui-val       ((:ui-fn c) new-val)]
-                          (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctl " ui-val " ui-val)
-                          (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals)))))))
+  (when (= (mouse-button) :left)
+    (let [x            (mouse-x)
+          y            (mouse-y)]
+      (when-let [c (if (nil? @dragged-control)
+                     (reset! dragged-control (control-at-xy x y))
+                     @dragged-control)]
+          ;; move sliders 1-to-1 with the ui (* 1/0.6)
+          ;; move selectors at an increased rate (2x)
+        (let [dy               (* (case (:type c)
+                                    :slider (/ 1.0 0.6)
+                                    :selector 2.0
+                                    1.0)
+                                  (- y (pmouse-y)))
+              control-name     (:name c)
+              last-val         (or (get (get @ui-state @selected-split) control-name) 0)
+              ;; constrain new-val to 0-127.0
+              new-val          (constrain (- last-val dy) 0.0 127.0)
+              synth-ctl-vals   ((:synth-fn c) new-val)]
+          (when (not-any? (:type c) [:button :small-button])
+            (doall (map (fn [synth-ctl-val]
+                          (let [synths       ((first synth-ctl-val))
+                                synth-ctl    (second synth-ctl-val)
+                                synth-val    (last synth-ctl-val)
+                                ui-val       ((:ui-fn c) new-val)]
+                            (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctl " ui-val " ui-val)
+                            (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals))))))))
 
 ;; keyboard key press using mouse
 (defn mouse-pressed []
