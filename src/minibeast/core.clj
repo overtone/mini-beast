@@ -1147,7 +1147,10 @@
   "Return the note of the key that occupies the point at (x y).
   Nil if no key occupies the space."
   [x y]
-  (if-let [k (first (filter (fn [k] (apply in-box? x y (:coords k))) ui-keys))]
+  (if-let [k (first (filter (fn [k] (and (apply in-box? x y (:coords k))
+                                         (if @show-modulation-controls?
+                                           (not (in-box? x y 49 470 263 711))
+                                           true))) ui-keys))]
     (note (:note k))
     nil))
 
