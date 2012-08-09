@@ -136,17 +136,18 @@
   (println "update-ui-state " m)
   (swap! ui-state (partial merge-with merge) {@selected-split m}))
 
-(defn ctl-ui-and-synth
-  "Control ui and synth parameters
-    [synth-ctl synth-val ui-val]
-       synth        - the synth to modify or synths to modify
-       synth-ctl    - synth parameter to modify
-       synth-val    - value to use when modifying synth parameter
-       control-name - the name of the control being modified
-       ui-val       - 0-127 midi velocity"
-  [synth synth-ctl synth-val control-name ui-val]
-    (update-ui-state {control-name  ui-val})
-    (ctl synth synth-ctl synth-val))
+(defn update-control
+  "Control ui and synth parameters"
+    [control new-val]
+    ;; find the synth parameter this control controls
+    (let [synth-ctl-vals   ((:synth-fn control) new-val)
+          control-name (:name control)]
+      (update-ui-state {control-name new-val})
+      (doall (map (fn [synth-ctl-val]
+                    (let [synths       ((first synth-ctl-val))
+                          synth-ctl    (second synth-ctl-val)
+                          synth-val    (last synth-ctl-val)]
+                      (ctl synths synth-ctl synth-val))) synth-ctl-vals))))
 
 (def sub-osc-waveforms [:sub-osc-square :sub-osc-sin])
 (defn next-sub-osc-waveform [w]
@@ -173,7 +174,7 @@
   (let [fns (cycle mod-wheel-fns)]
     (nth fns (inc (.indexOf fns f)))))
 
-(def vibrato-fns [:vibrato :trill-up :trill-down])
+(def vibrato-fns [:trill-up :vibrato :trill-down])
 (defn next-vibrato-fn [f]
   "Given vibrato fn, return the next fn that can be selected."
   (let [fns (cycle vibrato-fns)]
@@ -256,15 +257,7 @@
                                :chan        chan
                                :note        note
                                :cmd         cmd})]
-      ;; find the synth parameter this control controls
-      (let [synth-ctl-vals   ((:synth-fn matched-control) vel)]
-        (doall (map (fn [synth-ctl-val]
-                      (let [synths       ((first synth-ctl-val))
-                            synth-ctl    (second synth-ctl-val)
-                            synth-val    (last synth-ctl-val)
-                            control-name (:name matched-control)
-                            ui-val       ((:ui-fn matched-control) vel)]
-                        (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals))))
+      (update-control matched-control vel))
     (do
       (println "assigning assoc "
                {:device-name device-name :chan chan :note note :cmd cmd}
@@ -448,7 +441,7 @@
 
 (defn draw-control [control]
   (let [selected? (= (:name @selected-control) (:name control))
-        ui-val    (or ((:name control) (@selected-split @ui-state)) 0)
+        ui-val    (or ((:ui-fn control) (get (get @ui-state @selected-split) (:name control))) 0)
         args      (conj ((juxt :x :y #((:ui-fn %) ui-val)) control) selected?)
         ui-hints  (:ui-hints control)]
     (case (:type control)
@@ -517,14 +510,14 @@
                                                            (shape (state :sin-shape)    310 65))}
                      :sub-osc-waveform
                      (fn [val] (let [old-waveform (:sub-osc-waveform @synth-state)
-                                    new-state    (alter-state
-                                                  #(assoc % :sub-osc-waveform
-                                                          (if (zero? val)
-                                                            ;; button press; switch to next waveform
-                                                            (next-sub-osc-waveform (:sub-osc-waveform %))
-                                                            ;; knob or slider; calculate waveform
-                                                            (sub-osc-waveforms (int (* (/ val 128.0) (count sub-osc-waveforms)))))))
-                                    new-waveform (:sub-osc-waveform new-state)]
+                                    new-state     (alter-state
+                                                    #(assoc % :sub-osc-waveform
+                                                            (if (zero? val)
+                                                              ;; button press; switch to next waveform
+                                                              (next-sub-osc-waveform (:sub-osc-waveform %))
+                                                              ;; knob or slider; calculate waveform
+                                                              (sub-osc-waveforms (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
+                                    new-waveform  (:sub-osc-waveform new-state)]
                                 ;; Toggle sub-osc waveform
                                 [[synth-voices old-waveform 0] [synth-voices new-waveform (:sub-osc-amp @synth-state)]]))
                      (fn [val] (case (:sub-osc-waveform @synth-state)
@@ -536,14 +529,14 @@
                      :sub-osc-oct
                      (fn [val] (let [old-oct  (:sub-osc-oct @synth-state)
                                     new-state (alter-state
-                                               #(assoc % :sub-osc-oct
-                                                       (if (zero? val)
-                                                         ;; button press; switch to next oct
-                                                         (case old-oct
-                                                           1 2
-                                                           2 1)
-                                                         ;; knob or slider; calculate waveform
-                                                         ([1 2] (int (* (/ val 128.0) (count [1 2])))))))
+                                                #(assoc % :sub-osc-oct
+                                                        (if (zero? val)
+                                                          ;; button press; switch to next oct
+                                                          (case old-oct
+                                                            1 2
+                                                            2 1)
+                                                          ;; knob or slider; calculate waveform
+                                                          ([1 2] (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
                                     new-oct   (:sub-osc-oct new-state)]
                                 ;; Toggle sub-osc octave
                                 [[synth-voices :sub-osc-coeff (case (:sub-osc-oct @synth-state)
@@ -598,7 +591,7 @@
                                                              :fast :slow
                                                              :slow :fast)
                                                            ;; knob or slider; calculate speed
-                                                           ([:fast :slow] (int (* (/ val 128.0) (count [:fast :slow])))))))
+                                                           ([:fast :slow] (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
                                     new-speed  (:env-speed new-state)]
                                 ;; Toggle env-speed
                                 [[synth-voices :env-speed (case (:env-speed @synth-state)
@@ -648,7 +641,8 @@
                                                            ;; button press; switch to next fn
                                                            (next-vibrato-fn old-fn)
                                                            ;; knob or slider; calc fn
-                                                           (vibrato-fns (int (* (/ val 128.0) (count vibrato-fns)))))))
+                                                           (let [num-fns (count vibrato-fns)]
+                                                             (vibrato-fns (int (constrain (* num-fns (/ val 127.0)) 0 (dec num-fns))))))))
                                      new-fn    (:vibrato-fn new-state)
                                      mod-wheel-pos (:mod-wheel-pos @synth-state)]
                                  (case (:vibrato-fn @synth-state)
@@ -675,7 +669,8 @@
                                                          ;; button press; switch to next fn
                                                          (next-mod-wheel-fn old-fn)
                                                          ;; knob or slider; calc fn
-                                                         (mod-wheel-fns (int (* (/ val 128.0) (count mod-wheel-fns)))))))
+                                                         (let [num-fns (count mod-wheel-fns)]
+                                                           (mod-wheel-fns (int (constrain (* num-fns (/ val 127.0)) 0 (dec num-fns))))))))
                                     new-fn    (:mod-wheel-fn new-state)]
                                 []))
                      (fn [val] (case  (:mod-wheel-fn @synth-state)
@@ -713,7 +708,7 @@
                      (fn [val] (let [old-waveform (:lfo-waveform @synth-state)
                                     new-state    (alter-state
                                                   #(assoc % :lfo-waveform
-                                                          (if (= val 0)
+                                                          (if (zero? val)
                                                             ;; button press; switch to next waveform
                                                             (next-lfo-waveform (:lfo-waveform %))
                                                             ;; knob or slider; calculate waveform
@@ -728,16 +723,16 @@
                                         :ui-aux-fn (fn [] (text "Free" 645 410)
                                                           (text "Sync" 645 426))}
                      :lfo-arp-sync
-                     (fn [val] (let [last-val (:lfo-arp-sync @synth-state)
-                                    new-state (alter-state
-                                               #(assoc % :lfo-arp-sync
-                                                       (if (zero? val)
-                                                         ;; button press; switch to next val
-                                                         (case last-val
-                                                           0 1
-                                                           1 0)
-                                                         ;; knob or slider; calculate val
-                                                         ([0 1] (int (* (/ val 128.0) (count [0 1])))))))
+                     (fn [val] (let [last-val  (:lfo-arp-sync @synth-state)
+                                     new-state (alter-state
+                                                 #(assoc % :lfo-arp-sync
+                                                         (if (zero? val)
+                                                           ;; button press; switch to next val
+                                                           (case last-val
+                                                             0 1
+                                                             1 0)
+                                                           ;; knob or slider; calculate val
+                                                           ([0 1] (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
                                     new-val   (:lfo-arp-sync new-state)]
                                 ;; Toggle flag
                                 [[lfo-synth :lfo-arp-sync new-val]]))
@@ -762,14 +757,15 @@
                      (fn [val] (let [old-mode    (:arp-mode @synth-state)
                                      new-state   (alter-state
                                                   #(assoc % :arp-mode
-                                                          (if (= val 0)
+                                                          (if (zero? val)
                                                             ;; button press; switch to next mode
                                                             (mod (inc old-mode) 5)
-                                                            ;; knob or slider; calculate mote
-                                                            (int (* (/ (inc val) 129.0) 5)))))
-                                    new-mode (:arp-mode new-state)]
+                                                            ;; knob or slider; calculate mode
+                                                            (int (constrain (* 5.0 (/ val 127.0)) 0 4)))))
+                                     new-mode (:arp-mode new-state)
+                                     _        (println "new-mode " new-mode)]
                                 [[arp-synth :arp-mode new-mode]]))
-                     (fn [val] (case (:arp-mode @synth-state)
+                     (fn [val] (case (int (:arp-mode @synth-state))
                                 0 62 1 75 2 85 3 98 4 109)))
 
    ;; Arp range selector
@@ -863,9 +859,15 @@
                      :selected-split
                      (fn [val] (do
                                  (reset! selected-split
-                                         (case @selected-split
+                                         (if (zero? val)
+                                          ;; button press; switch to next mode
+                                          (case @selected-split
                                             :a :b
-                                            :b :a))
+                                            :b :a)
+                                           ;; knob or slider; calculate mode
+                                           (let [splits     [:a :b]
+                                                 num-splits (count splits)]
+                                             (splits (int (constrain (* num-splits (/ val 127.0)) 0 (dec num-splits)))))))
                                  []))
                      (fn [val] (case @selected-split
                                 :a 0 :b 16)))
@@ -985,21 +987,8 @@
     (reset-synth-defaults mbsynth)
     (doall (map (fn [[k v]]
                   (println "Setting " k)
-                  (let [control    (ctl->control k)
-                        synth-ctl-vals ((:synth-fn control) v)]
-                    (doall (map (fn [synth-ctl-val]
-                                  (let [synths     ((first synth-ctl-val))
-                                        synth-ctl  (second synth-ctl-val)
-                                        synth-val  (last synth-ctl-val)]
-                                    (if (= k :sub-osc-amp)
-                                      (do
-                                        (println "synths " synths)
-                                        (println "synth-ctl " synth-ctl)
-                                        (println "synth-val " synth-val)))
-                                    ;(println "synth-ctls " (map (fn [s] [s synth-ctl synth-val]) synths))
-                                    (ctl-ui-and-synth synths synth-ctl synth-val (:name control) v))) synth-ctl-vals)))) patch))
-    ;;(ctl-ui-and-synth synth-voices :gate 0.0 nil)
-    ))
+                  (let [control    (ctl->control k)]
+                    (update-control control v))) patch))))
 
 (defn apply-synth-settings-from-file []
   (let [extFilter   (FileNameExtensionFilter. "Patch (*.patch)" (into-array  ["patch"]))
@@ -1171,15 +1160,7 @@
   ;; toggle selected-control on mouse click
   (case (mouse-button)
     :left (if-let [matched-control (control-at-xy (mouse-x) (mouse-y))]
-            ;; find the synth parameter this control controls
-            (let [synth-ctl-vals   ((:synth-fn matched-control) 0)]
-              (doall (map (fn [synth-ctl-val]
-                            (let [synths       ((first synth-ctl-val))
-                                  synth-ctl    (second synth-ctl-val)
-                                  synth-val    (last synth-ctl-val)
-                                  control-name (:name matched-control)
-                                  ui-val       ((:ui-fn matched-control) 0)]
-                              (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals))))
+            (update-control matched-control 0))
     :right (if (nil? @selected-control)
              (let [x (mouse-x)
                    y (mouse-y)
@@ -1198,27 +1179,19 @@
                      (reset! dragged-control (control-at-xy x y))
                      @dragged-control)]
           ;; move sliders 1-to-1 with the ui (* 1/0.6)
-          ;; move selectors at an increased rate (2x)
+          ;; move selectors at an increased rate (8x)
         (let [dy               (* (case (:type c)
                                     :slider (/ 1.0 0.6)
-                                    :selector 2.0
+                                    :selector -8.0
                                     1.0)
                                   (- y (pmouse-y)))
-              control-name     (:name c)
-              last-val         (or (get (get @ui-state @selected-split) control-name) 0)
-              ;; constrain new-val to 0-127.0
-              new-val          (constrain (- last-val dy) 0.0 127.0)
-              synth-ctl-vals   ((:synth-fn c) new-val)
-              ui-val           ((:ui-fn c) new-val)]
+              last-val         (or (get (get @ui-state @selected-split) (:name c)) 0)
+              ;; constrain new-val to 1.0-127.0
+              ;; don't actually get to zero because it is reserved for button presses
+              new-val          (constrain (- last-val dy) 1.0 127.0)]
           (println "last-val " last-val " new-val " new-val)
           (when (not-any? (:type c) [:button :small-button])
-            (update-ui-state {control-name ui-val})
-            (doall (map (fn [synth-ctl-val]
-                          (let [synths       ((first synth-ctl-val))
-                                synth-ctl    (second synth-ctl-val)
-                                synth-val    (last synth-ctl-val)]
-                            (println "last-val " last-val " dy " dy " new-val " new-val " ctls " synth-ctl " ui-val " ui-val)
-                            (ctl-ui-and-synth synths synth-ctl synth-val control-name ui-val))) synth-ctl-vals))))))))
+            (update-control c new-val)))))))
 
 ;; keyboard key press using mouse
 (defn mouse-pressed []
