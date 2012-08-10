@@ -32,28 +32,28 @@
 (def arp-synth-b (darp :position :head arp-trig-bus-b arp-note-bus-b))
 
 (def lfo-synth-a (LFO :position :after
-                    :target arp-synth-a
-                    lfo-bus-a arp-trig-bus-a))
+                      :target arp-synth-a
+                      lfo-bus-a arp-trig-bus-a))
 (def lfo-synth-b (LFO :position :after
-                    :target arp-synth-b
-                    lfo-bus-b arp-trig-bus-b))
+                      :target arp-synth-b
+                      lfo-bus-b arp-trig-bus-b))
 
-(def synth-voices-a (doall (map (fn [_]
-                                (voice :position :after
-                                       :target lfo-synth-a
-                                       voice-bus-a
-                                       lfo-bus-a
-                                       arp-trig-bus-a
-                                       arp-note-bus-a))
-                              (range 4))))
-(def synth-voices-b (doall (map (fn [_]
-                                (voice :position :after
-                                       :target lfo-synth-b
-                                       voice-bus-b
-                                       lfo-bus-b
-                                       arp-trig-bus-b
-                                       arp-note-bus-b))
-                              (range 4))))
+(def synth-voices-a
+  (doall (map (fn [_] (voice :position :after
+                             :target lfo-synth-a
+                             voice-bus-a
+                             lfo-bus-a
+                             arp-trig-bus-a
+                             arp-note-bus-a))
+              (range 4))))
+(def synth-voices-b
+  (doall (map (fn [_] (voice :position :after
+                             :target lfo-synth-b
+                             voice-bus-b
+                             lfo-bus-b
+                             arp-trig-bus-b
+                             arp-note-bus-b))
+              (range 4))))
 
 (def mb-synth-a (mbsynth :position :tail voice-bus-a))
 (def mb-synth-b (mbsynth :position :tail voice-bus-b))
@@ -65,23 +65,24 @@
 ;; to the operation of the state of the synth.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defrecord SynthState [sub-osc-waveform
-                  sub-osc-amp
-                  sub-osc-oct
-                  octave-transpose
-                  lfo-waveform
-                  lfo-amp
-                  lfo-arp-sync
-                  filter-type
-                  mod-wheel-fn
-                  mod-wheel-pos
-                  vibrato-fn
-                  bend-range
-                  env-speed
-                  arp-mode
-                  arp-range
-                  arp-step
-                  arp-tap-time])
+(defrecord SynthState
+  [sub-osc-waveform
+   sub-osc-amp
+   sub-osc-oct
+   octave-transpose
+   lfo-waveform
+   lfo-amp
+   lfo-arp-sync
+   filter-type
+   mod-wheel-fn
+   mod-wheel-pos
+   vibrato-fn
+   bend-range
+   env-speed
+   arp-mode
+   arp-range
+   arp-step
+   arp-tap-time])
 
 (def synth-state (ref (SynthState. :sub-osc-square 0.0 1 0 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 :fast 0 2 0 0)))
 
@@ -210,7 +211,7 @@
            new-voice (assoc voice :note note)]
        (queue voices new-voice)
        (:synth new-voice))
-     (let [synth-voices (if (< note @split-note) synth-voices-a synth-voices-b)
+     (let [synth-voices       (if (< note @split-note) synth-voices-a synth-voices-b)
            first-unused-synth (first (difference (set synth-voices)
                                                  (map (fn [e] (:synth e)) @voices)))
            new-voice          {:synth first-unused-synth :note note}]
@@ -253,10 +254,10 @@
   (if (nil? @selected-control)
     ;; lookup a control matching the device, channel, note, and cmd
     (if-let [matched-control (@dev-chan-note-cmd->control
-                              {:device-name device-name
-                               :chan        chan
-                               :note        note
-                               :cmd         cmd})]
+                               {:device-name device-name
+                                :chan        chan
+                                :note        note
+                                :cmd         cmd})]
       (update-control matched-control vel))
     (do
       (println "assigning assoc "
@@ -280,8 +281,7 @@
 
 (defrecord AdvancedControl [x y type ui-hints name synth-fn ui-fn])
 
-(defmacro
-  do-transformation
+(defmacro do-transformation
   "Saves current transformation, performs body, restores current
   transformation on exit."
   [& body]
@@ -290,8 +290,7 @@
      ~@body
      (pop-matrix)))
 
-(defmacro
-  let-transformation
+(defmacro let-transformation
   "Performs the bindings then performs do-transformation on the body"
   [bindings & body]
   `(let* ~(destructure bindings)
@@ -306,7 +305,7 @@
   (image (case key-color
            :white (state :white-key-img)
            :black (state :black-key-img))
-        x y))
+    x y))
 
 (defn draw-knob [x y amount selected? pos-indicator? start-sym end-sym
                  sym-dx sym-dy zero? caption caption-dx caption-dy]
@@ -484,7 +483,6 @@
   (mk-ui-hint-builder
    {:pos-indicator? true :start-sym "-" :end-sym "+" :zero? true}))
 
-
 (defn selector-knob-label-pos
   "Return [x y] position of label for selector knob.
   x,y - position of knob.
@@ -550,30 +548,30 @@
   [(Control.         545 35  :knob (mk-pos-only-knob "Cutoff")        synth-voices :cutoff          (fn [val] (* (- val 10) 100.0)))
    (Control.         613 35  :knob (mk-pos-only-knob "Resonance")     synth-voices :resonance       (fn [val] (/ val 32.0)))
    (Control.         545 102 :knob (mk-plus-minus-knob "ENV Amt")     synth-voices :cutoff-env      (fn [val] (* (- val 64.0) 200.0)))
-   (Control.         613 102 :knob (mk-plus-minus-knob "KBD Tracking"
-                                               {:start-sym "0%"
-                                                :end-sym "200%"
-                                                :sym-dx 3
-                                                :sym-dy -5})          synth-voices :cutoff-tracking (fn [val] (/ val 64.0)))
+   (Control.         613 102 :knob (mk-plus-minus-knob "KBD Tracking" {:start-sym "0%"
+                                                                       :end-sym "200%"
+                                                                       :sym-dx 3
+                                                                       :sym-dy -5})
+                                                                      synth-voices :cutoff-tracking (fn [val] (/ val 64.0)))
    ;; Filter type knob
    (AdvancedControl. 670 35  :knob {:caption   "Mode"
                                     :ui-aux-fn #(do
                                                   (text-align :left)
                                                   (doall
                                                     (map-indexed
-                                                      (fn [i e](apply text e (selector-knob-label-pos 670 38 i)))
+                                                      (fn [i e] (apply text e (selector-knob-label-pos 670 38 i)))
                                                       ["LP" "BP" "HP" "Notch"]))
                                                   (text-align :center))}
                      :filter-type
                      (fn [val] (let [old-mode (:filter-type @synth-state)
                                     new-state (alter-state
                                                   #(assoc % :filter-type
-                                                          (if (= val 0)
+                                                          (if (zero? val)
                                                             ;; button press; switch to next mode
                                                             (next-filter-type (:filter-type %))
                                                             ;; knob or slider; calculate mode
                                                             (filter-types (int (* (/ val 128.0) (count filter-types)))))))
-                                    new-mode (:filter-type new-state)]
+                                    new-mode  (:filter-type new-state)]
                                 ;; Toggle filter mode
                                 [[synth-voices :filter-type (.indexOf filter-types new-mode)]]))
                      (fn [val] (case (:filter-type @synth-state)
@@ -596,8 +594,8 @@
                                     new-speed  (:env-speed new-state)]
                                 ;; Toggle env-speed
                                 [[synth-voices :env-speed (case (:env-speed @synth-state)
-                                                                    :fast 1
-                                                                    :slow 10)]]))
+                                                            :fast 1
+                                                            :slow 10)]]))
                      (fn [val] (case (:env-speed @synth-state)
                                 :fast 0 :slow 16)))])
 
@@ -635,16 +633,17 @@
                                                           (shape (state :sin-shape)        445 355)
                                                           (shape (state :trill-down-shape) 445 365))}
                      :vibrato-fn
-                     (fn [val] (let [old-fn    (:vibrato-fn @synth-state)
-                                     new-state (alter-state
-                                                 #(assoc % :vibrato-fn
-                                                         (if (zero? val)
-                                                           ;; button press; switch to next fn
-                                                           (next-vibrato-fn old-fn)
-                                                           ;; knob or slider; calc fn
-                                                           (let [num-fns (count vibrato-fns)]
-                                                             (vibrato-fns (int (constrain (* num-fns (/ val 127.0)) 0 (dec num-fns))))))))
-                                     new-fn    (:vibrato-fn new-state)
+                     (fn [val] (let [old-fn        (:vibrato-fn @synth-state)
+                                     new-state     (alter-state
+                                                     #(assoc % :vibrato-fn
+                                                             (if (zero? val)
+                                                               ;; button press; switch to next fn
+                                                               (next-vibrato-fn old-fn)
+                                                               ;; knob or slider; calc fn
+                                                               (let [num-fns (count vibrato-fns)]
+                                                                 (vibrato-fns (int (constrain (* num-fns (/ val 127.0))
+                                                                                              0 (dec num-fns))))))))
+                                     new-fn        (:vibrato-fn new-state)
                                      mod-wheel-pos (:mod-wheel-pos @synth-state)]
                                  (case (:vibrato-fn @synth-state)
                                    :vibrato    [[synth-voices :vibrato-amp (/ mod-wheel-pos 127.0)] 
@@ -671,7 +670,8 @@
                                                          (next-mod-wheel-fn old-fn)
                                                          ;; knob or slider; calc fn
                                                          (let [num-fns (count mod-wheel-fns)]
-                                                           (mod-wheel-fns (int (constrain (* num-fns (/ val 127.0)) 0 (dec num-fns))))))))
+                                                           (mod-wheel-fns (int (constrain (* num-fns (/ val 127.0))
+                                                                                          0 (dec num-fns))))))))
                                     new-fn    (:mod-wheel-fn new-state)]
                                 []))
                      (fn [val] (case  (:mod-wheel-fn @synth-state)
@@ -690,12 +690,12 @@
   [(Control. 546 398 :knob (mk-pos-only-knob "Rate")              lfo-synth    :lfo-rate
              (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 3.0)))
 
-   (Control. 475 332 :knob (mk-plus-minus-knob "PWM")             synth-voices :lfo2pwm           (fn [val] (- (/ val 32.0) 1.98)))
-   (Control. 544 332 :knob (mk-plus-minus-knob "Pitch")           synth-voices :lfo2pitch         (fn [val] (- (/ val 2.0) 32.0)))
-   (Control. 612 332 :knob (mk-plus-minus-knob "Filter")          synth-voices :lfo2filter        (fn [val] (* (- val 64.0) 400.0)))
+   (Control. 475 332 :knob (mk-plus-minus-knob "PWM")             synth-voices :lfo2pwm    (fn [val] (- (/ val 32.0) 1.98)))
+   (Control. 544 332 :knob (mk-plus-minus-knob "Pitch")           synth-voices :lfo2pitch  (fn [val] (- (/ val 2.0) 32.0)))
+   (Control. 612 332 :knob (mk-plus-minus-knob "Filter")          synth-voices :lfo2filter (fn [val] (* (- val 64.0) 400.0)))
    (Control. 681 332 :knob (mk-plus-minus-knob "Amp"
                                                 {:caption-dx -25
-                                                 :caption-dy -55}) synth-voices :lfo2amp           (fn [val] (- (/ val 32) 1.98)))
+                                                 :caption-dy -55}) synth-voices :lfo2amp   (fn [val] (- (/ val 32) 1.98)))
    ;; LFO waveform knob
    (AdvancedControl. 478 398 :knob {:caption   "Wave"
                                     :ui-aux-fn #(doall
@@ -741,9 +741,10 @@
                                 0 0 1 16)))])
 
 (defn arp-controls []
-  [(Control. 885 332 :knob (mk-pos-only-knob "Tempo") arp-synth :arp-rate        (fn [val] (let [rate (/ val 5.0)]
-                                                                                                (println "arp-rate " (* (/ 60 8) rate) " bmp")
-                                                                                                rate)))
+  [(Control. 885 332 :knob (mk-pos-only-knob "Tempo") arp-synth :arp-rate 
+             (fn [val] (let [rate (/ val 5.0)]
+                         (println "arp-rate " (* (/ 60 8) rate) " bmp")
+                         rate)))
    (Control. 829 398 :knob (mk-pos-only-knob "Swing") arp-synth :arp-swing-phase (fn [val] (* 360 (/ val 127.0))))
    ;; Arp mode selector
    (AdvancedControl. 742 398 :knob {:caption   "Mode"
@@ -755,16 +756,16 @@
                                                       ["Off" "Up" "Down" "Up/Dwn" "Rand"]))
                                                   (text-align :center))}
                      :arp-mode
-                     (fn [val] (let [old-mode    (:arp-mode @synth-state)
-                                     new-state   (alter-state
-                                                  #(assoc % :arp-mode
-                                                          (if (zero? val)
-                                                            ;; button press; switch to next mode
-                                                            (mod (inc old-mode) 5)
-                                                            ;; knob or slider; calculate mode
-                                                            (int (constrain (* 5.0 (/ val 127.0)) 0 4)))))
-                                     new-mode (:arp-mode new-state)
-                                     _        (println "new-mode " new-mode)]
+                     (fn [val] (let [old-mode  (:arp-mode @synth-state)
+                                     new-state (alter-state
+                                                #(assoc % :arp-mode
+                                                        (if (zero? val)
+                                                          ;; button press; switch to next mode
+                                                          (mod (inc old-mode) 5)
+                                                          ;; knob or slider; calculate mode
+                                                          (int (constrain (* 5.0 (/ val 127.0)) 0 4)))))
+                                     new-mode  (:arp-mode new-state)
+                                     _         (println "new-mode " new-mode)]
                                 [[arp-synth :arp-mode new-mode]]))
                      (fn [val] (case (int (:arp-mode @synth-state))
                                 0 62 1 75 2 85 3 98 4 109)))
@@ -779,7 +780,7 @@
                      (fn [val] (let [old-range (:arp-range @synth-state)
                                      new-state (alter-state
                                                  #(assoc % :arp-range
-                                                         (if (= val 0)
+                                                         (if (zero? val)
                                                            ;; button press; switch to next range
                                                            (inc (mod old-range 4))
                                                            ;; knob or slider; calculate range
@@ -796,15 +797,15 @@
                                                     (fn [i e](apply text e (selector-knob-label-pos 820 340 i)))
                                                     ["1/4" "1/8" "1/16" "1/4T" "1/8T" "1/16T"]))}
                      :arp-range
-                     (fn [val] (let [old-step (:arp-step @synth-state)
+                     (fn [val] (let [old-step  (:arp-step @synth-state)
                                      new-state (alter-state
                                                  #(assoc % :arp-step
-                                                         (if (= val 0)
+                                                         (if (zero? val)
                                                            ;; button press; switch to next step
                                                            (mod (inc old-step) 6)
                                                            ;; knob or slider; calculate range
                                                            (int (* (/ (inc val) 129.0) 6)))))
-                                    new-step  (:arp-step new-state)]
+                                    new-step   (:arp-step new-state)]
                                 [[arp-synth :arp-step new-step]]))
                      (fn [val] (case (:arp-step @synth-state)
                                 0 65 1 75 2 84 3 98 4 111 5 125)))
@@ -1174,22 +1175,22 @@
 (defn mouse-dragged []
   "For dragging controls around using mouse"
   (when (= (mouse-button) :left)
-    (let [x            (mouse-x)
-          y            (mouse-y)]
+    (let [x (mouse-x)
+          y (mouse-y)]
       (when-let [c (if (nil? @dragged-control)
                      (reset! dragged-control (control-at-xy x y))
                      @dragged-control)]
           ;; move sliders 1-to-1 with the ui (* 1/0.6)
           ;; move selectors at an increased rate (8x)
-        (let [dy               (* (case (:type c)
-                                    :slider (/ 1.0 0.6)
-                                    :selector -8.0
-                                    1.0)
-                                  (- y (pmouse-y)))
-              last-val         (or (get (get @ui-state @selected-split) (:name c)) 0)
+        (let [dy       (* (case (:type c)
+                            :slider (/ 1.0 0.6)
+                            :selector -8.0
+                            1.0)
+                          (- y (pmouse-y)))
+              last-val (or (get (get @ui-state @selected-split) (:name c)) 0)
               ;; constrain new-val to 1.0-127.0
               ;; don't actually get to zero because it is reserved for button presses
-              new-val          (constrain (- last-val dy) 1.0 127.0)]
+              new-val  (constrain (- last-val dy) 1.0 127.0)]
           (println "last-val " last-val " new-val " new-val)
           (when (not-any? (:type c) [:button :small-button])
             (update-control c new-val)))))))
@@ -1253,7 +1254,6 @@
 (defn key-released []
   (when-let [note (key-code->note (raw-key))]
     (keyup note)))
-
 
 (defn register-midi-handlers
   []
