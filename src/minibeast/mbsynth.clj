@@ -145,15 +145,15 @@
                            (* sub-osc-square (square sub-note-freq (* LFO lfo2pwm)))
                            (* osc-audio-in (sound-in)))
 
-        VCO+fback       (+ VCO 0);(* feedback-amp (local-in 1))) 
+        VCO+fback       (+ VCO (* feedback-amp (local-in))) 
         vcf-freq        (max 20 (+ cutoff
                                   (* lfo2filter LFO)
                                   (* cutoff-tracking note-freq)
                                   (* cutoff-env FILTER-ADSR)))
-        filter-bank    [(rlpf VCO vcf-freq (* -1 (- resonance 4)))
-                        (bpf  VCO vcf-freq (* -1 (- resonance 4)))
-                        (rhpf VCO vcf-freq (* -1 (- resonance 4)))
-                        (brf  VCO vcf-freq (* -1 (- resonance 4)))]
+        filter-bank    [(rlpf:ar VCO+fback vcf-freq (* -1 (- resonance 4)))
+                        (bpf:ar  VCO+fback vcf-freq (* -1 (- resonance 4)))
+                        (rhpf:ar VCO+fback vcf-freq (* -1 (- resonance 4)))
+                        (brf:ar  VCO+fback vcf-freq (* -1 (- resonance 4)))]
         VCF             (select filter-type filter-bank)
 
         VIBRATO-LFO     (+ 1 (* vibrato-amp (sin-osc:kr vibrato-rate)))
@@ -161,7 +161,7 @@
                            AMP-ADSR 
                            VIBRATO-LFO)
         OUT             (softclip (* velocity VCA VCF))
-        ;_               (local-out OUT)
+        _               (local-out OUT)
         ]
     (out voice-bus OUT)))
 

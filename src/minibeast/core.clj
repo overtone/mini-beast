@@ -819,8 +819,8 @@
                      (fn [val] val))])
 
 (defn volume-controls []
-  [(Control. 885 38 :knob (mk-pos-only-knob "Master Volume") mb-synth :volume       (fn [val] (/ val 12.0)))
-   (Control. 750 38 :knob (mk-pos-only-knob "Feedback Amt")  mb-synth :feedback-amp (fn [val] (/ val 127.0)))])
+  [(Control. 885 38 :knob (mk-pos-only-knob "Master Volume") mb-synth     :volume       (fn [val] (/ val 12.0)))
+   (Control. 750 38 :knob (mk-pos-only-knob "Feedback Amt")  synth-voices :feedback-amp (fn [val] (/ val 120.0)))])
 
 (defn wheel-controls []
    ;; Ptch bend wheel
