@@ -325,7 +325,7 @@
       (text start-sym (- -23 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
     (if-not (nil? end-sym)
       ;; draw end sym
-      (text end-sym (+ 22 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
+      (text end-sym (+ 24 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
     (if zero?
       ;; draw zero
       (text "0" 0 -27))
@@ -497,7 +497,7 @@
 (defn osc-controls []
   [(Control.         479 35 :knob (mk-pos-only-knob "Tri fold")       synth-voices :tri-fold-thresh   (fn [val] (+ (/ val -127.0) 1)))
    (Control.         341 35 :knob (mk-pos-only-knob "Detune Amt")     synth-voices :saw-detune-amp    (fn [val] (/ val 127.0)))
-   (Control.         409 38 :knob (mk-pos-only-knob "Pulse Width"
+   (Control.         407 38 :knob (mk-pos-only-knob "Pulse Width"
                                                     {:start-sym "50%"
                                                      :end-sym "90%"
                                                      :sym-dy -5})     synth-voices :osc-square-pw     (fn [val] (+ (/ val 255.0) 0.5)))
@@ -553,6 +553,7 @@
    (Control.         613 102 :knob (mk-plus-minus-knob "KBD Tracking"
                                                {:start-sym "0%"
                                                 :end-sym "200%"
+                                                :sym-dx 3
                                                 :sym-dy -5})          synth-voices :cutoff-tracking (fn [val] (/ val 64.0)))
    ;; Filter type knob
    (AdvancedControl. 670 35  :knob {:caption   "Mode"
@@ -657,10 +658,10 @@
                                  :trill-up 0
                                  :trill-down 20)))
    ;; Mod wheel function
-   (AdvancedControl. 283 335 :selector {:caption   "MOD Wheel"
-                                        :ui-aux-fn (fn [] (text "Cutoff"  315 348)
-                                                          (text "Vibrato" 315 358)
-                                                          (text "LFOAmt"  315 368))}
+   (AdvancedControl. 281 335 :selector {:caption   "MOD Wheel"
+                                        :ui-aux-fn (fn [] (text "Cutoff"  311 348)
+                                                          (text "Vibrato" 312 358)
+                                                          (text "LFOAmt"  313 368))}
                      :mod-wheel-fn
                      (fn [val] (let [old-fn   (:mod-wheel-fn @synth-state)
                                     new-state (alter-state
@@ -948,7 +949,7 @@
    {:color :white :coords [246 472 303 824] :note :F3}
    {:color :white :coords [303 472 366 824] :note :G3}
    {:color :white :coords [366 472 430 824] :note :A3}
-   {:color :white :coords [430 472 490 824] :note :B3}
+   {:color :white :coords [428 472 490 824] :note :B3}
    {:color :white :coords [490 472 549 824] :note :C4}
    {:color :white :coords [549 472 610 824] :note :D4}
    {:color :white :coords [610 472 669 824] :note :E4}
@@ -1103,17 +1104,17 @@
                    [705 170 filter-tint]
                    [910 170 amp-tint]
                    [898 383 arp-tint]
-                   [103 356 down-2-oct-tint]
-                   [123 356 down-1-oct-tint]
-                   [143 356 down-0-oct-tint]
-                   [163 356 up-1-oct-tint]
-                   [183 356 up-2-oct-tint]]))
+                   [102 354 down-2-oct-tint]
+                   [122 354 down-1-oct-tint]
+                   [142 354 down-0-oct-tint]
+                   [162 354 up-1-oct-tint]
+                   [182 354 up-2-oct-tint]]))
       (tint (color 255 255 255 255))
-      (doall (map (fn [t] (apply text ((juxt :t :x :y) t))) [{:x 116 :y 360 :t "-2"}
-                                                             {:x 136 :y 360 :t "-1"}
-                                                             {:x 158 :y 360 :t "0"}
-                                                             {:x 176 :y 360 :t "+1"}
-                                                             {:x 196 :y 360 :t "+2"}])))))
+      (doall (map (fn [t] (apply text ((juxt :t :x :y) t))) [{:x 114 :y 360 :t "-2"}
+                                                             {:x 134 :y 360 :t "-1"}
+                                                             {:x 156 :y 360 :t "0"}
+                                                             {:x 174 :y 360 :t "+1"}
+                                                             {:x 194 :y 360 :t "+2"}])))))
 
 (defn in-box?
   "is point [x y] inside the box bounded by [u v] [s t]?
