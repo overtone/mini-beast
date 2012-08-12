@@ -1045,6 +1045,7 @@
               :overtone-circle-img         (load-image "overtone-circle.png")
               :overtone-text-img           (load-image "overtone-text.png")
               :mini-beast-text-img         (load-image "mini-beast-text.png")
+              :logo-img                    (load-image "logo.png")
               :random-slew-shape           (load-shape "random-slew.svg")
               :random-shape                (load-shape "random.svg")
               :sin-shape                   (load-shape "sin.svg")
@@ -1061,6 +1062,7 @@
         overtone-circle-img (state :overtone-circle-img)
         overtone-text-img   (state :overtone-text-img)
         mini-beast-text-img (state :mini-beast-text-img)
+        logo-img            (state :logo-img)
         overtone-tint       (color 253 0 147)]
     (set-image 0 0 background-img)
     (tint overtone-tint)
@@ -1068,6 +1070,7 @@
     (tint 255 255 255)
     (image overtone-text-img 65 20)
     (image mini-beast-text-img 125 50)
+    (image logo-img 120 80)
     (doall (map (fn [k] (draw-key (first (:coords k))
                                   (second (:coords k))
                                   (:color k)
