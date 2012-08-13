@@ -317,18 +317,18 @@
     (apply translate tl)
     (text-size 8)
     (text-align :center)
-    (if pos-indicator?
+    (when pos-indicator?
       (image knob-background-img (- 0 w2) (- 1 w2)))
-    (if-not (nil? start-sym)
+    (when-not (nil? start-sym)
       ;; draw start sym
       (text start-sym (- -23 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
-    (if-not (nil? end-sym)
+    (when-not (nil? end-sym)
       ;; draw end sym
       (text end-sym (+ 24 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
-    (if zero?
+    (when zero?
       ;; draw zero
       (text "0" 0 -27))
-    (if-not (nil? caption)
+    (when-not (nil? caption)
       (let [cdx (or caption-dx 0)
             cdy (or caption-dy 0)]
         ;; draw caption
@@ -345,13 +345,13 @@
    y: y position
    amount: not used"
   (let [button-img (state :button-img)]
-    (if-not (nil? caption)
+    (when-not (nil? caption)
       (let [cdx (or caption-dx 0)
             cdy (or caption-dy 0)]
         (text-size 8)
         (text-align :center)
         (text caption (+ 22 cdx x) (+ cdy y 46))))
-    (if selected?
+    (when selected?
       (apply tint selected-tint))
     (image button-img x y)
     (tint 255 255 255)))
@@ -361,13 +361,13 @@
    y: y position
    amount: not used"
   (let [button-img (state :small-button-img)]
-    (if-not (nil? caption)
+    (when-not (nil? caption)
       (let [cdx (or caption-dx 0)
             cdy (or caption-dy 0)]
         (text-size 8)
         (text-align :center)
         (text caption (+ 22 cdx x) (+ cdy y 30))))
-    (if selected?
+    (when selected?
       (apply tint selected-tint))
     (image button-img x y)
     (tint 255 255 255)))
@@ -379,13 +379,13 @@
   (let [slider-background-img (state :slider-background-img)
         slider-img            (state :slider-img)]
     (image slider-background-img (- x 5) (- y 77))
-    (if-not (nil? caption)
+    (when-not (nil? caption)
       (let [cdx (or caption-dx 0)
             cdy (or caption-dy 0)]
         (text-size 8)
         (text-align :center)
         (text caption (+ 16 cdx x) (+ cdy y 40))))
-    (if selected?
+    (when selected?
       (apply tint selected-tint))
     (image slider-img x (+ y (* -0.6  amount)))
     (tint 255 255 255)))
@@ -397,13 +397,13 @@
   (let [selector-background-img (state :selector-background-img)
         selector-img            (state :selector-img) ]
     (image selector-background-img (+ x 1) (+ y 3))
-    (if-not (nil? caption)
+    (when-not (nil? caption)
       (let [cdx (or caption-dx 0)
             cdy (or caption-dy 0)]
         (text-size 8)
         (text-align :center)
         (text caption (+ 10 cdx x) (+ y cdy 44))))
-    (if selected?
+    (when selected?
       (apply tint selected-tint))
     (image selector-img x (+ y pos))
     (tint 255 255 255)))
@@ -417,7 +417,7 @@
         wheel-img                   (state :wheel-img)
         wheel-dimple-img            (state :wheel-dimple-img)
         wheel-dimple-inv-img        (state :wheel-dimple-inv-img)]
-    (if-not (nil? caption)
+    (when-not (nil? caption)
       (let [cdx (or caption-dx 0)
             cdy (or caption-dy 0)]
         (text-size 8)
@@ -1258,6 +1258,10 @@
   (when-let [note (key-code->note (raw-key))]
     (keyup note)))
 
+(defn close []
+  (println "--> Beast stopped...")
+  (kill-server))
+
 (defn register-midi-handlers
   []
   (on-sync-event [:midi :note-on]
@@ -1312,6 +1316,7 @@
                   :mouse-released mouse-released
                   :key-pressed key-pressed
                   :key-released key-released
+                  :on-close close
                   :decor true
                   :size [1036 850])
         frame    (-> sk meta :target-obj deref)
