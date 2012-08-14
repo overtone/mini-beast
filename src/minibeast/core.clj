@@ -103,9 +103,11 @@
 (defonce dragged-control            (atom nil))
 (defonce dev-chan-note-cmd->control (atom {}))
 (defonce mouse-pressed-note         (atom nil))
-(defonce show-modulation-controls?  (atom true))
+(defonce show-modulation-controls?  (atom false))
 (defonce selected-split             (atom :a))
 (defonce split-note                 (atom 60))
+(defonce first-draw?                (atom true))
+(defonce composite-background-img   (atom nil))
 
 (defn arp-synth []
   (case @selected-split
@@ -307,108 +309,120 @@
            :black (state :black-key-img))
     x y))
 
-(defn draw-knob [x y amount selected? pos-indicator? start-sym end-sym
-                 sym-dx sym-dy zero? caption caption-dx caption-dy]
+(defn draw-knob [x y amount selected? draw-foreground? draw-background?
+                 pos-indicator? start-sym end-sym sym-dx sym-dy zero?
+                 caption caption-dx caption-dy]
   (let-transformation
       [w2                  (/ 50 2.0)
        tl                  [(+ x w2) (+ y w2)]
        knob-background-img (state :knob-background-img)
        knob-img            (state :knob-img)]
     (apply translate tl)
-    (text-size 8)
-    (text-align :center)
-    (when pos-indicator?
-      (image knob-background-img (- 0 w2) (- 1 w2)))
-    (when-not (nil? start-sym)
-      ;; draw start sym
-      (text start-sym (- -23 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
-    (when-not (nil? end-sym)
-      ;; draw end sym
-      (text end-sym (+ 24 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
-    (when zero?
-      ;; draw zero
-      (text "0" 0 -27))
-    (when-not (nil? caption)
-      (let [cdx (or caption-dx 0)
-            cdy (or caption-dy 0)]
-        ;; draw caption
-        (text caption (+ cdx 0) (+ cdy 30))))
-    (rotate (- (* amount 0.038) 2.4))
-    (translate (- w2) (- w2))
-    (when selected?
-      (apply tint selected-tint))
-    (image knob-img 0 0)
-    (tint 255 255 255)))
+    (when draw-background?
+      (text-size 8)
+      (text-align :center)
+      (when pos-indicator?
+        (image knob-background-img (- 0 w2) (- 1 w2)))
+      (when-not (nil? start-sym)
+        ;; draw start sym
+        (text start-sym (- -23 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
+      (when-not (nil? end-sym)
+        ;; draw end sym
+        (text end-sym (+ 24 (or sym-dx 0)) (+ 27 (or sym-dy 0))))
+      (when zero?
+        ;; draw zero
+        (text "0" 0 -27))
+      (when-not (nil? caption)
+        (let [cdx (or caption-dx 0)
+              cdy (or caption-dy 0)]
+          ;; draw caption
+          (text caption (+ cdx 0) (+ cdy 30)))))
+    (when draw-foreground?
+      (rotate (- (* amount 0.038) 2.4))
+      (translate (- w2) (- w2))
+      (when selected?
+        (apply tint selected-tint))
+      (image knob-img 0 0)
+      (tint 255 255 255))))
 
-(defn draw-button [x y amount selected? caption caption-dx caption-dy]
+(defn draw-button [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   "x: x position
    y: y position
    amount: not used"
   (let [button-img (state :button-img)]
-    (when-not (nil? caption)
-      (let [cdx (or caption-dx 0)
-            cdy (or caption-dy 0)]
-        (text-size 8)
-        (text-align :center)
-        (text caption (+ 22 cdx x) (+ cdy y 46))))
-    (when selected?
-      (apply tint selected-tint))
-    (image button-img x y)
-    (tint 255 255 255)))
+    (when draw-background?
+      (when-not (nil? caption)
+        (let [cdx (or caption-dx 0)
+              cdy (or caption-dy 0)]
+          (text-size 8)
+          (text-align :center)
+          (text caption (+ 22 cdx x) (+ cdy y 46)))))
+    (when draw-foreground?
+      (when selected?
+        (apply tint selected-tint))
+      (image button-img x y)
+      (tint 255 255 255))))
 
-(defn draw-small-button [x y amount selected? caption caption-dx caption-dy]
+(defn draw-small-button [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   "x: x position
    y: y position
    amount: not used"
   (let [button-img (state :small-button-img)]
-    (when-not (nil? caption)
-      (let [cdx (or caption-dx 0)
-            cdy (or caption-dy 0)]
-        (text-size 8)
-        (text-align :center)
-        (text caption (+ 22 cdx x) (+ cdy y 30))))
-    (when selected?
-      (apply tint selected-tint))
-    (image button-img x y)
-    (tint 255 255 255)))
+    (when draw-background?
+      (when-not (nil? caption)
+        (let [cdx (or caption-dx 0)
+              cdy (or caption-dy 0)]
+          (text-size 8)
+          (text-align :center)
+          (text caption (+ 22 cdx x) (+ cdy y 30)))))
+    (when draw-foreground?
+      (when selected?
+        (apply tint selected-tint))
+      (image button-img x y)
+      (tint 255 255 255))))
 
-(defn draw-slider [x y amount selected? caption caption-dx caption-dy]
+(defn draw-slider [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   "x: x position
      y: y position
      amount: 0.0-127.0"
   (let [slider-background-img (state :slider-background-img)
         slider-img            (state :slider-img)]
-    (image slider-background-img (- x 5) (- y 77))
-    (when-not (nil? caption)
-      (let [cdx (or caption-dx 0)
-            cdy (or caption-dy 0)]
-        (text-size 8)
-        (text-align :center)
-        (text caption (+ 16 cdx x) (+ cdy y 40))))
-    (when selected?
-      (apply tint selected-tint))
-    (image slider-img x (+ y (* -0.6  amount)))
-    (tint 255 255 255)))
+    (when draw-background?
+      (image slider-background-img (- x 5) (- y 77))
+      (when-not (nil? caption)
+        (let [cdx (or caption-dx 0)
+              cdy (or caption-dy 0)]
+          (text-size 8)
+          (text-align :center)
+          (text caption (+ 16 cdx x) (+ cdy y 40)))))
+    (when draw-foreground?
+      (when selected?
+        (apply tint selected-tint))
+      (image slider-img x (+ y (* -0.6  amount)))
+      (tint 255 255 255))))
 
-(defn draw-selector [x y pos selected? caption caption-dx caption-dy]
+(defn draw-selector [x y pos selected? draw-foreground? draw-background?
+                     caption caption-dx caption-dy]
   "x: x position
      y: y position
      pos: y position offet"
   (let [selector-background-img (state :selector-background-img)
         selector-img            (state :selector-img) ]
-    (image selector-background-img (+ x 1) (+ y 3))
-    (when-not (nil? caption)
-      (let [cdx (or caption-dx 0)
-            cdy (or caption-dy 0)]
-        (text-size 8)
-        (text-align :center)
-        (text caption (+ 10 cdx x) (+ y cdy 44))))
-    (when selected?
-      (apply tint selected-tint))
-    (image selector-img x (+ y pos))
-    (tint 255 255 255)))
+    (when draw-background?
+      (image selector-background-img (+ x 1) (+ y 3))
+      (when-not (nil? caption)
+        (let [cdx (or caption-dx 0)
+              cdy (or caption-dy 0)]
+          (text-size 8)
+          (text-align :center)
+          (text caption (+ 10 cdx x) (+ y cdy 44)))))
+    (when draw-foreground?
+      (when selected?
+        (apply tint selected-tint))
+      (image selector-img x (+ y pos))
+      (tint 255 255 255))))
 
-(defn draw-wheel [x y amount selected? caption caption-dx caption-dy]
+(defn draw-wheel [x y amount selected? _ _ caption caption-dx caption-dy]
   "x: x position on screen
    y: y position on screen
    amount: 0.0-127.0
@@ -438,10 +452,10 @@
         (image wheel-dimple-inv-img dx dy)
         (tint 255 255 255 255)))))
 
-(defn draw-control [control]
+(defn draw-control [control draw-foreground? draw-background?]
   (let [selected? (= (:name @selected-control) (:name control))
         ui-val    (or ((:ui-fn control) (get (get @ui-state @selected-split) (:name control))) 0)
-        args      (conj ((juxt :x :y #((:ui-fn %) ui-val)) control) selected?)
+        args      (conj ((juxt :x :y #((:ui-fn %) ui-val)) control) selected? draw-foreground? draw-background?)
         ui-hints  (:ui-hints control)]
     (case (:type control)
       :knob         (apply draw-knob           (apply conj args
@@ -898,6 +912,14 @@
                                  [[synth-voices :octave-transpose (:octave-transpose new-state)]]))
                      (fn [val] 0))])
 
+(defn get-mod-controls []
+  (let [get-mod-controls-helper
+          (memoize (fn [] 
+            (map (fn [c] (if (= (type c) Control)
+                                (control->advanced-control c)
+                                c)) (mod-controls))))]
+    (get-mod-controls-helper)))
+
 (defn get-controls 
   ([]
    (get-controls @show-modulation-controls?))
@@ -1064,13 +1086,26 @@
         mini-beast-text-img (state :mini-beast-text-img)
         logo-img            (state :logo-img)
         overtone-tint       (color 253 0 147)]
-    (set-image 0 0 background-img)
-    (tint overtone-tint)
-    (image overtone-circle-img 65 20)
-    (tint 255 255 255)
-    (image overtone-text-img 65 20)
-    (image mini-beast-text-img 125 50)
-    (image logo-img 120 80)
+    (if @first-draw?
+      (let [draw-foreground? false
+            draw-background? true
+            tmp-background   "tmp-background.png"]
+        (reset! first-draw? false)
+        (println "--> Compositing background...")
+        (set-image 0 0 background-img)
+        (tint overtone-tint)
+        (image overtone-circle-img 65 20)
+        (tint 255 255 255)
+        (image overtone-text-img 65 20)
+        (image mini-beast-text-img 125 50)
+        (image logo-img 120 80)
+        (doall (map #(draw-control % draw-foreground? draw-background?) (get-controls false)))
+        (save tmp-background)
+        (println "--> Loading new background...")
+        (reset! composite-background-img (load-image tmp-background))))
+
+    (set-image 0 0 @composite-background-img)
+    ;; draw all keys
     (doall (map (fn [k] (draw-key (first (:coords k))
                                   (second (:coords k))
                                   (:color k)
@@ -1079,10 +1114,18 @@
                                          :white 0
                                          :black 1)) ui-keys)))
     (tint (color 255 255 255 255))
+
+    ;; draw modulation panel
     (when @show-modulation-controls?
       ; draw background
-      (image (state :mod-panel-img) 50 472))
-    (doall (map draw-control (get-controls)))
+      (image (state :mod-panel-img) 50 472)
+      (doall (map #(draw-control % true true) (get-mod-controls))))
+
+    ;; draw regular controls
+    (let [draw-foreground? true
+          draw-background? false]
+      (doall (map #(draw-control % draw-foreground? draw-background?) (get-controls false))))
+
     (let [lfo              (or @(-> (lfo-synth) :taps :lfo) 0)
           lfo-tint         (color 255 0 0 (* 255 lfo))
           amp              (apply max 0 (map (fn [s] @(-> s :taps :amp-adsr)) (concat synth-voices-a synth-voices-b)))
