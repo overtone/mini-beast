@@ -1012,7 +1012,8 @@
     (doall (map (fn [[k v]]
                   (println "Setting " k)
                   (let [control    (ctl->control k)]
-                    (update-control control v))) patch))))
+                    ;; zero values are considered clicks. Just make them 1's instead.
+                    (update-control control (max 1 v)))) patch))))
 
 (defn apply-synth-settings-from-file []
   (let [extFilter   (FileNameExtensionFilter. "Patch (*.patch)" (into-array  ["patch"]))
@@ -1046,6 +1047,9 @@
   (background 0)
   ;; load the most bad-est preset possible!
   (load-synth-settings-from-file "./presets/way-huge.patch")
+  (reset! selected-split :b)
+  (load-synth-settings-from-file "./presets/bass.patch")
+  (reset! selected-split :a)
   (set-state! :background-img              (load-image "background.png")
               :mod-panel-img               (load-image "mod-panel.png")
               :button-img                  (load-image "button.png")
