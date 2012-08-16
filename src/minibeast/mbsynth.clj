@@ -43,13 +43,13 @@
         rand-lfo        (t-rand -1.0 1.0 (sin-osc lfo-rate)) 
         arp-trig        (in:kr arp-trig-bus 1)
         phase-reset     (* lfo-arp-sync (+ 1 (* -1 arp-trig)))
-        phase           (wrap (sweep phase-reset (* 2 Math/PI lfo-rate)) (- Math/PI) Math/PI)
-        LFO             (slew (+ (* lfo-sin (sin-osc 0 phase))
-                                 (* lfo-saw (lf-saw 0 phase))
-                                 (* lfo-square (square 0 phase))
-                                 (* lfo-tri (lf-tri 0 phase))
+        LFO             (slew (+ (* lfo-sin    (sin-osc  lfo-rate   phase-reset))
+                                 (* lfo-saw    (lf-saw   lfo-rate   phase-reset))
+                                 (* lfo-square (lf-pulse lfo-square phase-reset))
+                                 (* lfo-tri    (lf-tri   lfo-rate   phase-reset))
                                  (* lfo-rand rand-lfo)
                                  (* lfo-slew-rand (slew rand-lfo))) 100 100)
+
         lfo-tap         (tap :lfo 10
                              (lag-ud LFO 0 0.9))]
     (out lfo-bus LFO)))
@@ -146,10 +146,10 @@
                            (* osc-audio-in (sound-in)))
 
         VCO+fback       (+ VCO (* feedback-amp (local-in))) 
-        vcf-freq        (max 20 (+ cutoff
-                                  (* lfo2filter LFO)
-                                  (* cutoff-tracking note-freq)
-                                  (* cutoff-env FILTER-ADSR)))
+        vcf-freq        (min 10000 (max 20 (+ cutoff
+                                              (* lfo2filter LFO)
+                                              (* cutoff-tracking note-freq)
+                                              (* cutoff-env FILTER-ADSR))))
         filter-bank    [(rlpf:ar VCO+fback vcf-freq (* -1 (- resonance 4)))
                         (bpf:ar  VCO+fback vcf-freq (* -1 (- resonance 4)))
                         (rhpf:ar VCO+fback vcf-freq (* -1 (- resonance 4)))
