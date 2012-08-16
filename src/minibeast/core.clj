@@ -1220,7 +1220,8 @@
                (println "click at [" x ", " y "]")
                (println "found control " c)
                (reset! selected-control c))
-             (reset! selected-control nil))))
+             (reset! selected-control nil))
+    nil))
 
 (defn mouse-dragged []
   "For dragging controls around using mouse"
