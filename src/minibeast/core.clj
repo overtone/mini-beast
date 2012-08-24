@@ -3,7 +3,6 @@
            [javax.swing.filechooser FileNameExtensionFilter]
            [java.awt.event ActionListener]
            [java.io File]
-           [com.apple.eawt.Application]
            [java.awt.Toolkit])
   (:use [overtone.live :exclude (mouse-button mouse-x mouse-y)]
         [overtone.helpers.system :only [mac-os?]]
@@ -1333,6 +1332,7 @@
 ;; Redefine from overtone/src/overtone/libs/app_icon.clj on account of it being defn- ed there.
 (defn- set-osx-icon
   [icon]
+  (import com.apple.eawt.Application)
   (try
     (.setDockIconImage (com.apple.eawt.Application/getApplication) icon)
   (catch Exception e
