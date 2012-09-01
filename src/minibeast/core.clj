@@ -1329,15 +1329,9 @@
                  handle-control
                  ::bend-event-handler))
 
-;; Redefine from overtone/src/overtone/libs/app_icon.clj on account of it being defn- ed there.
-(defn- set-osx-icon
-  [icon]
-  (import com.apple.eawt.Application)
-  (try
-    (.setDockIconImage (com.apple.eawt.Application/getApplication) icon)
-  (catch Exception e
-    false))
-  true)
+(defmacro when* [test & body]
+  (when test
+    ``(~~@body)))
 
 (defn start-gui
   []
@@ -1372,8 +1366,12 @@
     (doto frame
       (.setJMenuBar mb)
       (.setVisible true))
-    (when (mac-os?)
-      (set-osx-icon icon))))
+    (when* (mac-os?)
+      (import com.apple.eawt.Application)
+      (try
+        (.setDockIconImage (com.apple.eawt.Application/getApplication) icon)
+      (catch Exception e
+        false)))))
 
 (defn -main
   [& args]
