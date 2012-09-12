@@ -1211,12 +1211,14 @@
   ;; toggle selected-control on mouse click
   (case (mouse-button)
     :left (if-let [matched-control (control-at-xy (mouse-x) (mouse-y))]
+            (println "left click at [" (mouse-x) ", " (mouse-y) "]")
+            (println "found control " matched-control)
             (update-control matched-control 0))
     :right (if (nil? @selected-control)
              (let [x (mouse-x)
                    y (mouse-y)
                    c (control-at-xy x y)]
-               (println "click at [" x ", " y "]")
+               (println "right click at [" x ", " y "]")
                (println "found control " c)
                (reset! selected-control c))
              (reset! selected-control nil))
