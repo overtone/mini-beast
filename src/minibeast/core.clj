@@ -107,6 +107,7 @@
 (defonce split-note                 (atom 60))
 (defonce first-draw?                (atom true))
 (defonce composite-background-img   (atom nil))
+(defonce control-key-pressed        (atom false))
 
 (defn arp-synth []
   (case @selected-split
@@ -1209,20 +1210,23 @@
 
 (defn mouse-clicked []
   ;; toggle selected-control on mouse click
-  (case (mouse-button)
-    :left (if-let [matched-control (control-at-xy (mouse-x) (mouse-y))]
-            (println "left click at [" (mouse-x) ", " (mouse-y) "]")
-            (println "found control " matched-control)
-            (update-control matched-control 0))
-    :right (if (nil? @selected-control)
-             (let [x (mouse-x)
-                   y (mouse-y)
-                   c (control-at-xy x y)]
-               (println "right click at [" x ", " y "]")
-               (println "found control " c)
-               (reset! selected-control c))
-             (reset! selected-control nil))
-    nil))
+  (let [button (if @control-key-pressed
+                 :right
+                 (mouse-button))]
+    (println button)
+    (println "ctrl? " @control-key-pressed)
+    (case button
+      :left (when-let [matched-control (control-at-xy (mouse-x) (mouse-y))]
+              (update-control matched-control 0))
+      :right (if (nil? @selected-control)
+               (let [x (mouse-x)
+                     y (mouse-y)
+                     c (control-at-xy x y)]
+                 (println "right click at [" x ", " y "]")
+                 (println "found control " c)
+                 (reset! selected-control c))
+               (reset! selected-control nil))
+      nil)))
 
 (defn mouse-dragged []
   "For dragging controls around using mouse"
@@ -1298,14 +1302,21 @@
     \; (note :D#3)
     \/ (note :E3)} key-code))
 
+
 (defn key-pressed []
   (when-let [note (key-code->note (raw-key))]
     (println "Playing " (find-note-name note))
-    (keydown note 1.0)))
+    (keydown note 1.0))
+  (when (= java.awt.event.KeyEvent/VK_CONTROL (key-code))
+    (println "control pressed")
+    (reset! control-key-pressed true)))
 
 (defn key-released []
   (when-let [note (key-code->note (raw-key))]
-    (keyup note)))
+    (keyup note))
+  (when (= java.awt.event.KeyEvent/VK_CONTROL (key-code))
+    (println "control released")
+    (reset! control-key-pressed false)))
 
 (defn close []
   (println "--> Beast stopped...")
