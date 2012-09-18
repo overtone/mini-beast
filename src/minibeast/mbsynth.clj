@@ -45,7 +45,7 @@
         phase-reset     (* lfo-arp-sync (+ 1 (* -1 arp-trig)))
         LFO             (slew (+ (* lfo-sin    (sin-osc  lfo-rate   phase-reset))
                                  (* lfo-saw    (lf-saw   lfo-rate   phase-reset))
-                                 (* lfo-square (lf-pulse lfo-square phase-reset))
+                                 (* lfo-square (lf-pulse lfo-rate   phase-reset))
                                  (* lfo-tri    (lf-tri   lfo-rate   phase-reset))
                                  (* lfo-rand rand-lfo)
                                  (* lfo-slew-rand (slew rand-lfo))) 100 100)
