@@ -560,7 +560,7 @@
 
 (defn filter-controls []
   [(Control.         545 35  :knob (mk-pos-only-knob "Cutoff")        synth-voices :cutoff          (fn [val] (* (- val 10) 100.0)))
-   (Control.         613 35  :knob (mk-pos-only-knob "Resonance")     synth-voices :resonance       (fn [val] (/ val 32.0)))
+   (Control.         613 35  :knob (mk-pos-only-knob "Resonance")     synth-voices :resonance       (fn [val] (/ val 127.0)))
    (Control.         545 102 :knob (mk-plus-minus-knob "ENV Amt")     synth-voices :cutoff-env      (fn [val] (* (- val 64.0) 200.0)))
    (Control.         613 102 :knob (mk-plus-minus-knob "KBD Tracking" {:start-sym "0%"
                                                                        :end-sym "200%"
@@ -626,14 +626,14 @@
                      (fn [val] (* 127.0 (:sub-osc-amp @synth-state))))])
 
 (defn filter-asdr-controls []
-  [(Control. 565 265 :slider {:caption "Attack"}  synth-voices :filter-attack  (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+  [(Control. 565 265 :slider {:caption "Attack"}  synth-voices :filter-attack  (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 0.9) 12.0)))
    (Control. 605 265 :slider {:caption "Decay"}   synth-voices :filter-decay   (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
    (Control. 645 265 :slider {:caption "Sustain"} synth-voices :filter-sustain (fn [val] (/ val 127.0)))
    (Control. 685 265 :slider {:caption "Release"} synth-voices :filter-release (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))])
 
 
 (defn amp-adsr-controls []
-  [(Control. 770 265 :slider {:caption "Attack"}  synth-voices :amp-attack  (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
+  [(Control. 770 265 :slider {:caption "Attack"}  synth-voices :amp-attack  (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 0.9) 12.0)))
    (Control. 810 265 :slider {:caption "Decay"}   synth-voices :amp-decay   (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))
    (Control. 850 265 :slider {:caption "Sustain"} synth-voices :amp-sustain (fn [val] (/ val 127.0)))
    (Control. 890 265 :slider {:caption "Release"} synth-voices :amp-release (fn [val] (/ (- (Math/pow 1.01 (* val 5.0)) 1.0) 12.0)))])

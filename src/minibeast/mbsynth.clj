@@ -150,10 +150,10 @@
                                               (* lfo2filter LFO)
                                               (* cutoff-tracking note-freq)
                                               (* cutoff-env FILTER-ADSR))))
-        filter-bank    [(rlpf:ar VCO+fback vcf-freq (* -1 (- resonance 4)))
-                        (bpf:ar  VCO+fback vcf-freq (* -1 (- resonance 4)))
-                        (rhpf:ar VCO+fback vcf-freq (* -1 (- resonance 4)))
-                        (brf:ar  VCO+fback vcf-freq (* -1 (- resonance 4)))]
+        filter-bank    [(rlpf:ar VCO+fback vcf-freq (- 1.0 resonance))
+                        (bpf:ar  VCO+fback vcf-freq (- 1.1 resonance));;(/ 1.0 resonance))
+                        (rhpf:ar VCO+fback vcf-freq (- 1.0 resonance))
+                        (brf:ar  VCO+fback vcf-freq (- 1.0 resonance))]
         VCF             (select filter-type filter-bank)
 
         VIBRATO-LFO     (+ 1 (* vibrato-amp (sin-osc:kr vibrato-rate)))
