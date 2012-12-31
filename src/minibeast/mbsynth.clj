@@ -24,7 +24,7 @@
                                    (dswitch [(dser arp-scale-up   (* 2 arp-range))
                                              (dser arp-scale-down (* 2 arp-range))] (dseq [0 1] INF))
                                    (dshuf arp-scale-up INF)] arp-mode)
-        arp-out         (demand arp-trig 0 arp-notes INF)]
+        arp-out         (demand arp-trig 0 arp-notes)]
     (out:kr arp-trig-bus (* arp-on? arp-trig))
     (out:kr arp-note-bus arp-out)))
         

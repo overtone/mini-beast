@@ -143,14 +143,14 @@
   "Control ui and synth parameters"
     [control new-val]
     ;; find the synth parameter this control controls
-    (let [synth-ctl-vals   ((:synth-fn control) new-val)
-          control-name (:name control)]
-      (update-ui-state {control-name new-val})
-      (doall (map (fn [synth-ctl-val]
-                    (let [synths       ((first synth-ctl-val))
-                          synth-ctl    (second synth-ctl-val)
-                          synth-val    (last synth-ctl-val)]
-                      (ctl synths synth-ctl synth-val))) synth-ctl-vals))))
+    (let [control-name (:name control)
+          _                (update-ui-state {control-name new-val})
+          synth-ctl-vals   ((:synth-fn control) new-val)
+          _            (doall (map (fn [synth-ctl-val]
+                           (let [synths       ((first synth-ctl-val))
+                                 synth-ctl    (second synth-ctl-val)
+                                 synth-val    (last synth-ctl-val)]
+                               (ctl synths synth-ctl synth-val))) synth-ctl-vals))]))
 
 (def sub-osc-waveforms [:sub-osc-square :sub-osc-sin])
 (defn next-sub-osc-waveform [w]
@@ -529,7 +529,10 @@
                                                               (next-sub-osc-waveform (:sub-osc-waveform %))
                                                               ;; knob or slider; calculate waveform
                                                               (sub-osc-waveforms (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
-                                    new-waveform  (:sub-osc-waveform new-state)]
+                                    new-waveform  (:sub-osc-waveform new-state)
+                                    _             (update-ui-state {:sub-osc-waveform (case new-waveform
+                                                                                       :sub-osc-square 1
+                                                                                       :sub-osc-sin    127)})]
                                 ;; Toggle sub-osc waveform
                                 [[synth-voices old-waveform 0] [synth-voices new-waveform (:sub-osc-amp @synth-state)]]))
                      (fn [val] (case (:sub-osc-waveform @synth-state)
@@ -549,7 +552,10 @@
                                                             2 1)
                                                           ;; knob or slider; calculate waveform
                                                           ([1 2] (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
-                                    new-oct   (:sub-osc-oct new-state)]
+                                    new-oct   (:sub-osc-oct new-state)
+                                    _         (update-ui-state {:sub-osc-oct (case new-oct
+                                                                              1 1
+                                                                              2 127)})]
                                 ;; Toggle sub-osc octave
                                 [[synth-voices :sub-osc-coeff (case (:sub-osc-oct @synth-state)
                                                                     1 0.5
@@ -585,7 +591,12 @@
                                                             (next-filter-type (:filter-type %))
                                                             ;; knob or slider; calculate mode
                                                             (filter-types (int (* (/ val 128.0) (count filter-types)))))))
-                                    new-mode  (:filter-type new-state)]
+                                    new-mode  (:filter-type new-state)
+                                    _         (update-ui-state {:filter-type (case new-mode
+                                                                              :low-pass  1
+                                                                              :band-pass 33
+                                                                              :high-pass 65
+                                                                              :notch     127)})]
                                 ;; Toggle filter mode
                                 [[synth-voices :filter-type (.indexOf filter-types new-mode)]]))
                      (fn [val] (case (:filter-type @synth-state)
@@ -605,7 +616,10 @@
                                                              :slow :fast)
                                                            ;; knob or slider; calculate speed
                                                            ([:fast :slow] (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
-                                    new-speed  (:env-speed new-state)]
+                                    new-speed  (:env-speed new-state)
+                                    _          (update-ui-state {:env-speed (case new-speed
+                                                                             :fast 1
+                                                                             :slow 127)})]
                                 ;; Toggle env-speed
                                 [[synth-voices :env-speed (case (:env-speed @synth-state)
                                                             :fast 1
@@ -658,6 +672,10 @@
                                                                  (vibrato-fns (int (constrain (* num-fns (/ val 127.0))
                                                                                               0 (dec num-fns))))))))
                                      new-fn        (:vibrato-fn new-state)
+                                     _             (update-ui-state {:vibrato-fn (case new-fn
+                                                                                  :trill-up   1
+                                                                                  :vibrato    70
+                                                                                  :trill-down 127)})
                                      mod-wheel-pos (:mod-wheel-pos @synth-state)]
                                  (case (:vibrato-fn @synth-state)
                                    :vibrato    [[synth-voices :vibrato-amp (/ mod-wheel-pos 127.0)] 
@@ -686,7 +704,11 @@
                                                          (let [num-fns (count mod-wheel-fns)]
                                                            (mod-wheel-fns (int (constrain (* num-fns (/ val 127.0))
                                                                                           0 (dec num-fns))))))))
-                                    new-fn    (:mod-wheel-fn new-state)]
+                                    new-fn    (:mod-wheel-fn new-state)
+                                    _         (update-ui-state {:mod-wheel-fn (case new-fn
+                                                                               :cutoff 1
+                                                                               :vibrato 65
+                                                                               :lfo-amount 127)})]
                                 []))
                      (fn [val] (case  (:mod-wheel-fn @synth-state)
                                 :cutoff 0 :vibrato 10 :lfo-amount 20)))
@@ -721,14 +743,21 @@
                                                      :random-shape :random-slew-shape]))}
                      :lfo-waveform
                      (fn [val] (let [old-waveform (:lfo-waveform @synth-state)
-                                    new-state    (alter-state
-                                                  #(assoc % :lfo-waveform
+                                    new-state     (alter-state
+                                                      #(assoc % :lfo-waveform
                                                           (if (zero? val)
                                                             ;; button press; switch to next waveform
                                                             (next-lfo-waveform (:lfo-waveform %))
                                                             ;; knob or slider; calculate waveform
                                                             (lfo-waveforms (int (* (/ val 128.0) (count lfo-waveforms)))))))
-                                    new-waveform (:lfo-waveform new-state)]
+                                    new-waveform (:lfo-waveform new-state)
+                                    _            (update-ui-state {:lfo-waveform (case new-waveform
+                                                                                  :lfo-sin       1
+                                                                                  :lfo-tri       23
+                                                                                  :lfo-saw       45
+                                                                                  :lfo-square    67
+                                                                                  :lfo-rand      89
+                                                                                  :lfo-slew-rand 127)})]
                                 ;; Toggle lfo waveform
                                 [[lfo-synth old-waveform 0] [lfo-synth new-waveform (:lfo-amp @synth-state)]]))
                      (fn [val] (case (:lfo-waveform @synth-state)
@@ -748,7 +777,10 @@
                                                              1 0)
                                                            ;; knob or slider; calculate val
                                                            ([0 1] (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
-                                    new-val   (:lfo-arp-sync new-state)]
+                                    new-val   (:lfo-arp-sync new-state)
+                                    _         (update-ui-state {:lfo-arp-sync (case new-val
+                                                                               0 1
+                                                                               1 127)})]
                                 ;; Toggle flag
                                 [[lfo-synth :lfo-arp-sync new-val]]))
                      (fn [val] (case (:lfo-arp-sync @synth-state)
@@ -779,6 +811,12 @@
                                                           ;; knob or slider; calculate mode
                                                           (int (constrain (* 5.0 (/ val 127.0)) 0 4)))))
                                      new-mode  (:arp-mode new-state)
+                                     _         (update-ui-state {:arp-mode (case new-mode
+                                                                            0 1
+                                                                            1 30
+                                                                            2 56
+                                                                            3 82
+                                                                            4 127)})
                                      _         (println "new-mode " new-mode)]
                                 [[arp-synth :arp-mode new-mode]]))
                      (fn [val] (case (int (:arp-mode @synth-state))
@@ -799,7 +837,12 @@
                                                            (inc (mod old-range 4))
                                                            ;; knob or slider; calculate range
                                                            (inc (int (* (/ (inc val) 129.0) 4))))))
-                                    new-range  (:arp-range new-state)]
+                                    new-range  (:arp-range new-state)
+                                    _          (update-ui-state {:arp-range (case new-range
+                                                                             1 1
+                                                                             2 33
+                                                                             3 65
+                                                                             4 127)})]
                                 [[arp-synth :arp-range new-range]]))
                      (fn [val] (case (:arp-range @synth-state)
                                 1 60 2 75 3 88 4 101)))
@@ -810,7 +853,7 @@
                                                   (map-indexed
                                                     (fn [i e](apply text e (selector-knob-label-pos 820 340 i)))
                                                     ["1/4" "1/8" "1/16" "1/4T" "1/8T" "1/16T"]))}
-                     :arp-range
+                     :arp-step
                      (fn [val] (let [old-step  (:arp-step @synth-state)
                                      new-state (alter-state
                                                  #(assoc % :arp-step
@@ -819,7 +862,14 @@
                                                            (mod (inc old-step) 6)
                                                            ;; knob or slider; calculate range
                                                            (int (* (/ (inc val) 129.0) 6)))))
-                                    new-step   (:arp-step new-state)]
+                                    new-step   (:arp-step new-state)
+                                    _          (update-ui-state {:arp-step (case new-step
+                                                                            0 1
+                                                                            1 23
+                                                                            2 45
+                                                                            3 67
+                                                                            4 89
+                                                                            5 127)})]
                                 [[arp-synth :arp-step new-step]]))
                      (fn [val] (case (:arp-step @synth-state)
                                 0 65 1 75 2 84 3 98 4 111 5 125)))
