@@ -1,18 +1,18 @@
 (ns minibeast.core
-  (:require [quil.applet :as ap])
+  (:require [quil.applet :as ap]
+            [clojure.string :as str])
   (:use
-   [overtone.live :exclude [mouse-button mouse-x mouse-y rotate fill]]
    [overtone.helpers.system :only [mac-os?]]
    [quil.core :as q
     :exclude [abs acos asin atan atan2 ceil cos
               exp line log
               ;;  mouse-button mouse-x mouse-y
               pow round scale sin sqrt tan triangle
-              TWO-PI floor clear clip load-image debug]]
+              TWO-PI floor clear clip load-image debug fill rotate
+              mouse-x mouse-y mouse-button]]
    [minibeast.version :only [BEAST-VERSION-STR]]
    [clojure.set :only [difference]]
-   [quil.applet]
-   [minibeast.mbsynth])
+   [quil.applet])
   (:import
    (javax.swing JFileChooser JMenuBar JMenu JMenuItem)
    (javax.swing.filechooser FileNameExtensionFilter)
@@ -21,7 +21,49 @@
    (java.awt Toolkit)
    javax.imageio.ImageIO
    processing.awt.PImageAWT)
-  (:require [clojure.java.io :as io]))
+  (:require
+   [clojure.java.io :as io]
+   [clojure.tools.cli :as cli]))
+
+(binding [*out* (java.io.StringWriter.)
+          *err* (java.io.StringWriter.)]
+  (load "/overtone/api"))
+((resolve 'overtone.api/immigrate-overtone-api))
+
+
+(def cli-opts
+  [["-x" "--sc-boot-external" "Boot a separate SuperCollider server process, instead of starting an embedded server."]
+   ["-u" "--sc-udp-port PORT" "Connect to an external SuperCollider server over UDP at the given port, instead of starting an embedded server."
+    :parse-fn parse-long]
+   ["-v" "--verbose" "Verbosity level"
+    :id :verbosity
+    :default 0
+    :update-fn inc]
+   ["-h" "--help"]])
+
+(defn banner [& args]
+  (println "     -~~=::[  " (str/join " " args) "  ]::=~~-"))
+
+(let [{:keys [options arguments summary errors]}
+      (cli/parse-opts *command-line-args* cli-opts)]
+  (when (or (:help options)
+            (seq arguments)
+            errors)
+    (println)
+    (banner "The  MiniBeast")
+    (println)
+    (println summary)
+    (System/exit (if errors 1 0)))
+  (cond
+    (:sc-boot-external options)
+    (boot-external-server)
+    (:sc-udp-port options)
+    (connect-external-server (:sc-udp-port options))
+    :else
+    (boot-internal-server)))
+
+;; We have to boot overtone before we can start defines synths
+(use '[minibeast.mbsynth])
 
 ;; Create some synth instruments to be used by voices.
 
@@ -105,7 +147,6 @@
 ;; to the operation of the ui of the synth.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defonce quil-state                 (atom {}))
 (defonce ui-state                   (atom {:a {} :b {}}))
 (defonce selected-control           (atom nil))
 (defonce dragged-control            (atom nil))
@@ -143,9 +184,10 @@
 (def voices-max 4)
 (defonce voices-a (ref ()))
 (defonce voices-b (ref ()))
+(defonce verbosity (atom 0))
 
 (defn debug [& args]
-  (when false
+  (when (< 0 @verbosity)
     (apply println args)))
 
 (defn update-ui-state [m]
@@ -316,11 +358,11 @@
 (defn draw-key [x y key-color selected?]
   (if selected?
     (apply tint selected-tint)
-    (tint (color 255 255 255 255)))
+    (tint 255 255))
   (image (case key-color
            :white (state :white-key-img)
            :black (state :black-key-img))
-    x y))
+         x y))
 
 (defn draw-knob [x y amount selected? draw-foreground? draw-background?
                  pos-indicator? start-sym end-sym sym-dx sym-dy zero?
@@ -351,12 +393,13 @@
           ;; draw caption
           (text caption (+ cdx 0) (+ cdy 30)))))
     (when draw-foreground?
-      (rotate (- (* amount 0.038) 2.4))
+      (q/rotate (- (* amount 0.038) 2.4))
       (translate (- w2) (- w2))
-      (when selected?
-        (apply tint selected-tint))
+      (if selected?
+        (apply tint selected-tint)
+        (tint 255 255))
       (image knob-img 0 0)
-      (tint 255 255 255))))
+      (tint 255 255))))
 
 (defn draw-button [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   "x: x position
@@ -374,7 +417,7 @@
       (when selected?
         (apply tint selected-tint))
       (image button-img x y)
-      (tint 255 255 255))))
+      (tint 255 255))))
 
 (defn draw-small-button [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   "x: x position
@@ -392,7 +435,7 @@
       (when selected?
         (apply tint selected-tint))
       (image button-img x y)
-      (tint 255 255 255))))
+      (tint 255 255))))
 
 (defn draw-slider [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   "x: x position
@@ -412,7 +455,7 @@
       (when selected?
         (apply tint selected-tint))
       (image slider-img x (+ y (* -0.6  amount)))
-      (tint 255 255 255))))
+      (tint 255 255))))
 
 (defn draw-selector [x y pos selected? draw-foreground? draw-background?
                      caption caption-dx caption-dy]
@@ -433,7 +476,7 @@
       (when selected?
         (apply tint selected-tint))
       (image selector-img x (+ y pos))
-      (tint 255 255 255))))
+      (tint 255 255))))
 
 (defn draw-wheel [x y amount selected? _ _ caption caption-dx caption-dy]
   "x: x position on screen
@@ -952,13 +995,14 @@
                                  :a 0 :b 16)))
    (AdvancedControl. 120 642 :knob {:caption "Split Note"
                                     :pos-indicator? true
-                                    :ui-aux-fn (fn [] (fill (color 0 0 0 255))
+                                    :ui-aux-fn (fn []
+                                                 (q/fill 70)
                                                  (rect 180 658 40 24)
-                                                 (fill (color 255 0 0 255))
+                                                 (q/fill 255)
                                                  (text-size 16)
-                                                 (text (str (find-note-name (note @split-note))) 199 676)
+                                                 (text (name (find-note-name (note @split-note))) 199 676)
                                                  (text-size 8)
-                                                 (fill (color 255 255 255 255)))}
+                                                 (q/fill (color 255 255 255 255)))}
                      :split-note
                      (fn [val] (do
                                  (reset! split-note (int val))
@@ -1165,36 +1209,44 @@
         (set-image 0 0 background-img)
         (tint overtone-tint)
         (image overtone-circle-img 65 20)
-        (tint 255 255 255)
+        (tint 255 255)
         (image overtone-text-img 65 20)
         (image mini-beast-text-img 125 50)
         (image logo-img 120 80)
         (doall (map #(draw-control % draw-foreground? draw-background?) (get-controls false)))
+        (q/fill 255)
+        (doseq [{:keys [t x y]}  [{:x 114 :y 360 :t "-2"}
+                                  {:x 134 :y 360 :t "-1"}
+                                  {:x 156 :y 360 :t "0"}
+                                  {:x 174 :y 360 :t "+1"}
+                                  {:x 194 :y 360 :t "+2"}]]
+          (text t x y))
         (save (str "data/" tmp-background))
         (debug "--> Loading new background...")
-        (reset! composite-background-img (load-image tmp-background))))
+        (reset! composite-background-img (load-image tmp-background))
+        ))
 
     (set-image 0 0 @composite-background-img)
     ;; draw all keys
-    (doall (map (fn [k] (draw-key (first (:coords k))
-                                  (second (:coords k))
-                                  (:color k)
-                                  (some (fn [v] (= (:note v) (note (:note k)))) (concat @voices-a @voices-b))))
-                (sort-by (fn [k] (case (:color k)
-                                   :white 0
-                                   :black 1)) ui-keys)))
-    (tint (color 255 255 255 255))
+    (doseq [k (sort-by (fn [k] (case (:color k) :white 0 :black 1)) ui-keys)]
+      (draw-key (first (:coords k))
+                (second (:coords k))
+                (:color k)
+                (some (fn [v] (= (:note v) (note (:note k)))) (concat @voices-a @voices-b))))
 
     ;; draw modulation panel
     (when @show-modulation-controls?
-                                        ; draw background
+      ;; draw background
+      (tint 255 255)
       (image (state :mod-panel-img) 50 472)
-      (doall (map #(draw-control % true true) (get-mod-controls))))
+      (doseq [ctl (get-mod-controls)]
+        (draw-control ctl true true)))
 
     ;; draw regular controls
     (let [draw-foreground? true
           draw-background? false]
-      (doall (map #(draw-control % draw-foreground? draw-background?) (get-controls false))))
+      (doseq [ctl (get-controls false)]
+        (draw-control ctl draw-foreground? draw-background?)))
 
     (let [lfo              (or @(-> (lfo-synth) :taps :lfo) 0)
           lfo-tint         (color 255 0 0 (* 255 lfo))
@@ -1216,22 +1268,18 @@
                         (tint t)
                         (image led-img x y))]
 
-      (doall (map (partial apply draw-led)
-                  [[590 388 lfo-tint]
-                   [705 170 filter-tint]
-                   [910 170 amp-tint]
-                   [898 383 arp-tint]
-                   [102 354 down-2-oct-tint]
-                   [122 354 down-1-oct-tint]
-                   [142 354 down-0-oct-tint]
-                   [162 354 up-1-oct-tint]
-                   [182 354 up-2-oct-tint]]))
-      (tint (color 255 255 255 255))
-      (doall (map (fn [t] (apply text ((juxt :t :x :y) t))) [{:x 114 :y 360 :t "-2"}
-                                                             {:x 134 :y 360 :t "-1"}
-                                                             {:x 156 :y 360 :t "0"}
-                                                             {:x 174 :y 360 :t "+1"}
-                                                             {:x 194 :y 360 :t "+2"}])))))
+      (doseq [[x y led] [[590 388 lfo-tint]
+                         [705 170 filter-tint]
+                         [910 170 amp-tint]
+                         [898 383 arp-tint]
+                         [102 354 down-2-oct-tint]
+                         [122 354 down-1-oct-tint]
+                         [142 354 down-0-oct-tint]
+                         [162 354 up-1-oct-tint]
+                         [182 354 up-2-oct-tint]]]
+        (draw-led x y led))
+
+      )))
 
 (defn in-box?
   "is point [x y] inside the box bounded by [u v] [s t]?
@@ -1278,15 +1326,15 @@
   ;; toggle selected-control on mouse click
   (let [button (if @control-key-pressed
                  :right
-                 (mouse-button))]
+                 (q/mouse-button))]
     (debug button)
     (debug "ctrl? " @control-key-pressed)
     (case button
-      :left (when-let [matched-control (control-at-xy (mouse-x) (mouse-y))]
+      :left (when-let [matched-control (control-at-xy (q/mouse-x) (q/mouse-y))]
               (update-control matched-control 0))
       :right (if (nil? @selected-control)
-               (let [x (mouse-x)
-                     y (mouse-y)
+               (let [x (q/mouse-x)
+                     y (q/mouse-y)
                      c (control-at-xy x y)]
                  (debug "right click at [" x ", " y "]")
                  (debug "found control " c)
@@ -1296,9 +1344,9 @@
 
 (defn mouse-dragged []
   "For dragging controls around using mouse"
-  (when (= (mouse-button) :left)
-    (let [x (mouse-x)
-          y (mouse-y)]
+  (when (= (q/mouse-button) :left)
+    (let [x (q/mouse-x)
+          y (q/mouse-y)]
       (when-let [c (if (nil? @dragged-control)
                      (reset! dragged-control (control-at-xy x y))
                      @dragged-control)]
@@ -1319,7 +1367,7 @@
 
 ;; keyboard key press using mouse
 (defn mouse-pressed []
-  (when-let [note (key-note-at-xy (mouse-x) (mouse-y))]
+  (when-let [note (key-note-at-xy (q/mouse-x) (q/mouse-y))]
     (debug "Playing " (find-note-name note))
     (reset! mouse-pressed-note note)
     (keydown note 1.0)))
@@ -1386,7 +1434,8 @@
 
 (defn close []
   (debug "--> Beast stopped...")
-  (kill-server))
+  (kill-server)
+  (System/exit 0))
 
 (defn register-midi-handlers
   []
@@ -1438,15 +1487,16 @@
                   :key-pressed key-pressed
                   :key-released key-released
                   :on-close close
-                  :decor true
                   :size [1036 850]
-                  :state quil-state)
-        _ (def sk sk)
+                  )
+        _        (def sk sk)
+        ;; Hack, makes some assumptions about Processing internals
+        frame    (.getFrame (.getNative (.getSurface sk)))
         ;;frame    (-> sk meta :target-obj deref)
         icon     (.createImage (java.awt.Toolkit/getDefaultToolkit) "data/icon.png")]
-    #_(doto frame
-        (.setJMenuBar mb)
-        (.setVisible true))
+    (doto frame
+      (.setJMenuBar mb)
+      (.setVisible true))
     #_(when* (mac-os?)
         (import com.apple.eawt.Application)
         (try
@@ -1455,11 +1505,13 @@
             false)))))
 
 (defn -main [& args]
-  (println "--> Starting The MiniBeast...")
   (register-midi-handlers)
   (start-gui)
-  (println "--> Beast started..."))
+  (banner "The MiniBeast is a go"))
 
 (comment
+  (-main)
 
-  )
+  (:state (meta sk))
+
+  (System/exit 0))

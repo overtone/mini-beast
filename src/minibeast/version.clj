@@ -1,7 +1,7 @@
 (ns minibeast.version)
 
 (def BEAST-VERSION {:major 0
-                    :minor 0
+                    :minor 1
                     :patch 1
                     :snapshot true})
 
