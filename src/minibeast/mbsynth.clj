@@ -16,7 +16,7 @@
         arp-tap         (tap :arp 10 (lag-ud arp-trig 0 0.9))
         arp-scale-up    (dseries 0                (dseq [ 7  5] INF) (+ (* arp-range 2) 1))
         arp-scale-down  (dseries (* 12 arp-range) (dseq [-5 -7] INF) (+ (* arp-range 2) 1))
-        arp-notes       (dswitch1 [(donce  0)
+        arp-notes       (dswitch1 [#_(donce  0) ;; "Donce , a demand-rate UGen with no identifiable purpose, is deprecated. It was most likely used in the production of electronic donce music."
                                    (dseq  arp-scale-up INF)
                                    (dseq  arp-scale-down INF)
                                    ;; notes at the top and bottom repeat. May be due to
@@ -27,7 +27,7 @@
         arp-out         (demand arp-trig 0 arp-notes)]
     (out:kr arp-trig-bus (* arp-on? arp-trig))
     (out:kr arp-note-bus arp-out)))
-        
+
 (defsynth LFO
   [lfo-bus           {:default 16     :doc "bus to output LFO"}
    arp-trig-bus      {:default 1      :doc "bus to input arp trigger"}
@@ -40,7 +40,7 @@
    lfo-slew-rand     {:default 0.0    :doc "LFO smoothed random amount"}
    lfo-arp-sync      {:default 0      :doc "0 = no sync, 1 = sync"}]
   (let [
-        rand-lfo        (t-rand -1.0 1.0 (sin-osc lfo-rate)) 
+        rand-lfo        (t-rand -1.0 1.0 (sin-osc lfo-rate))
         arp-trig        (in:kr arp-trig-bus 1)
         phase-reset     (* lfo-arp-sync (+ 1 (* -1 arp-trig)))
         LFO             (slew (+ (* lfo-sin    (sin-osc  lfo-rate   phase-reset))
@@ -132,7 +132,7 @@
                               glide-rate glide-rate)
         sub-note-freq   (* note-freq sub-osc-coeff)
         TRI-FOLD-THRESH (max 0.01 (+ (* FILTER-ADSR tri-fold-env) tri-fold-thresh))
-        VCO             (+ (* osc-saw (+ (lf-saw note-freq) 
+        VCO             (+ (* osc-saw (+ (lf-saw note-freq)
                                          (* saw-detune-amp
                                             (lf-saw (+ note-freq saw-detune))
                                             (lf-saw (- note-freq saw-detune))
@@ -145,7 +145,7 @@
                            (* sub-osc-square (square sub-note-freq (* LFO lfo2pwm)))
                            (* osc-audio-in (sound-in)))
 
-        VCO+fback       (+ VCO (* feedback-amp (local-in))) 
+        VCO+fback       (+ VCO (* feedback-amp (local-in)))
         vcf-freq        (min 10000 (max 20 (+ cutoff
                                               (* lfo2filter LFO)
                                               (* cutoff-tracking note-freq)
@@ -158,7 +158,7 @@
 
         VIBRATO-LFO     (+ 1 (* vibrato-amp (sin-osc:kr vibrato-rate)))
         VCA             (* (+ 1 (*  lfo2amp LFO))
-                           AMP-ADSR 
+                           AMP-ADSR
                            VIBRATO-LFO)
         OUT             (softclip (* velocity VCA VCF))
         _               (local-out OUT)
@@ -189,4 +189,3 @@
         _               (local-out delay-sig)
         ]
     (out 0 (pan2 OUT))))
-

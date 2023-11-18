@@ -1,0 +1,7 @@
+{:paths ["src" "data"]
+ :deps
+ {org.clojure/clojure                     {:mvn/version "1.11.1"},
+  overtone/overtone                       {:mvn/version "0.11.0"},
+  quil/quil                               {:mvn/version "4.3.1323"},
+  commons-collections/commons-collections {:mvn/version "20040616"}},
+ :aliases {}}

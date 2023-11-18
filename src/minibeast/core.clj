@@ -6,11 +6,11 @@
            [java.awt.Toolkit])
   (:use [overtone.live :exclude (mouse-button mouse-x mouse-y)]
         [overtone.helpers.system :only [mac-os?]]
-        [quil.core :exclude (abs acos asin atan atan2 ceil cos
-                                 exp line log
-                                 ;;  mouse-button mouse-x mouse-y
-                                 pow round scale sin sqrt tan triangle
-                                 TWO-PI)]
+        [quil.core :exclude [abs acos asin atan atan2 ceil cos
+                             exp line log
+                             ;;  mouse-button mouse-x mouse-y
+                             pow round scale sin sqrt tan triangle
+                             TWO-PI]]
         [minibeast.version :only [BEAST-VERSION-STR]]
         [clojure.set :only [difference]]
         [quil.applet]
@@ -678,7 +678,7 @@
                                                                                   :trill-down 127)})
                                      mod-wheel-pos (:mod-wheel-pos @synth-state)]
                                  (case (:vibrato-fn @synth-state)
-                                   :vibrato    [[synth-voices :vibrato-amp (/ mod-wheel-pos 127.0)] 
+                                   :vibrato    [[synth-voices :vibrato-amp (/ mod-wheel-pos 127.0)]
                                                 [synth-voices :vibrato-trill 0]]
                                    :trill-up   [[synth-voices :vibrato-amp 0.0]
                                                 [synth-voices :vibrato-trill (int (/ mod-wheel-pos 10))]]
@@ -736,7 +736,7 @@
    (AdvancedControl. 478 398 :knob {:caption   "Wave"
                                     :ui-aux-fn #(doall
                                                   (map-indexed
-                                                    (fn [i e] (apply shape 
+                                                    (fn [i e] (apply shape
                                                                      (state e)
                                                                      (selector-knob-label-pos 478 398 i)))
                                                     [:sin-shape :tri-shape :saw-shape :square-shape
@@ -787,7 +787,7 @@
                                 0 0 1 16)))])
 
 (defn arp-controls []
-  [(Control. 885 332 :knob (mk-pos-only-knob "Tempo") arp-synth :arp-rate 
+  [(Control. 885 332 :knob (mk-pos-only-knob "Tempo") arp-synth :arp-rate
              (fn [val] (let [rate (/ val 5.0)]
                          (println "arp-rate " (* (/ 60 8) rate) " bmp")
                          rate)))
@@ -875,7 +875,7 @@
                                 0 65 1 75 2 84 3 98 4 111 5 125)))
    ;; Arp tap tempo button
    (AdvancedControl. 889 407 :button {:caption "Tap"} :arp-tap-tempo
-                     (fn [val] 
+                     (fn [val]
                        (let [dt (- (now) (:arp-tap-time @synth-state))]
                          (alter-state #(assoc % :arp-tap-time (now)))
                          (if (< dt 2000)
@@ -918,7 +918,7 @@
    (Control. 60  566 :knob (mk-pos-only-knob "Mix")    mb-synth :reverb-mix     (fn [val] (/ val 127.0)))
    (Control. 130 566 :knob (mk-pos-only-knob "Size")   mb-synth :reverb-size    (fn [val] (/ val 127.0)))
    (Control. 200 566 :knob (mk-pos-only-knob "Damp")   mb-synth :reverb-damp    (fn [val] (/ val 127.0)))
-   
+
    (AdvancedControl. 70 652 :selector {:caption "Split Select"
                                        :ui-aux-fn (fn [] (text "Left"  96 664)
                                                          (text "Right" 96 680))}
@@ -964,13 +964,13 @@
 
 (defn get-mod-controls []
   (let [get-mod-controls-helper
-          (memoize (fn [] 
+          (memoize (fn []
             (map (fn [c] (if (= (type c) Control)
                                 (control->advanced-control c)
                                 c)) (mod-controls))))]
     (get-mod-controls-helper)))
 
-(defn get-controls 
+(defn get-controls
   ([]
    (get-controls @show-modulation-controls?))
   ([show-modulation-controls?]
@@ -1224,7 +1224,7 @@
     |         |
     | + [x y] |
     |         |
-    +---------+ 
+    +---------+
              [s t]"
   [x y u v s t]
   (and (> x u)
