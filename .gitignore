@@ -12,3 +12,4 @@ native
 hs_err*.log
 tmp_background.png
 tmp-background.png
+.nrepl-port
