@@ -1,6 +1,10 @@
 (ns minibeast.core
-  (:require [quil.applet :as ap]
-            [clojure.string :as str])
+  (:gen-class)
+  (:require
+   [quil.applet :as ap]
+   [clojure.string :as str]
+   [clojure.java.io :as io]
+   [clojure.tools.cli :as cli])
   (:use
    [overtone.helpers.system :only [mac-os?]]
    [quil.core :as q
@@ -21,10 +25,7 @@
    (java.io File)
    (java.awt Toolkit)
    javax.imageio.ImageIO
-   processing.awt.PImageAWT)
-  (:require
-   [clojure.java.io :as io]
-   [clojure.tools.cli :as cli]))
+   processing.awt.PImageAWT))
 
 (defonce verbosity (atom 0))
 
@@ -48,7 +49,7 @@
 (def preset-dir (io/file (System/getProperty "user.dir") "presets"))
 
 (defn banner [& args]
-  (println "     -~~=::[  " (str/join " " args) "  ]::=~~-"))
+  (println "     -·~=:#{[  " (str/join " " args) "  ]}#:=~·-"))
 
 (defonce __handle-cli-args
   (let [{:keys [options arguments summary errors]}
@@ -56,9 +57,9 @@
     (when (or (:help options)
               errors)
       (println)
-      (banner "The  MiniBeast")
+      (banner "···Overtone···MINIBEAST···")
       (println)
-      (println "mini-beast [options] [patch-a] [patch-b]")
+      (println "minibeast [options] [patch-a] [patch-b]")
       (println)
       (println summary)
       (System/exit (if errors 1 0)))
@@ -133,23 +134,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defrecord SynthState
-  [sub-osc-waveform
-   sub-osc-amp
-   sub-osc-oct
-   octave-transpose
-   lfo-waveform
-   lfo-amp
-   lfo-arp-sync
-   filter-type
-   mod-wheel-fn
-   mod-wheel-pos
-   vibrato-fn
-   bend-range
-   env-speed
-   arp-mode
-   arp-range
-   arp-step
-   arp-tap-time])
+    [sub-osc-waveform
+     sub-osc-amp
+     sub-osc-oct
+     octave-transpose
+     lfo-waveform
+     lfo-amp
+     lfo-arp-sync
+     filter-type
+     mod-wheel-fn
+     mod-wheel-pos
+     vibrato-fn
+     bend-range
+     env-speed
+     arp-mode
+     arp-range
+     arp-step
+     arp-tap-time])
 
 (def synth-state (ref (SynthState. :sub-osc-square 0.0 1 0 :lfo-sin 1.0 0 :low-pass :cutoff 0.0 :vibrato 12 :fast 0 2 0 0)))
 
@@ -213,16 +214,16 @@
 
 (defn update-control
   "Control ui and synth parameters"
-    [control new-val]
-    ;; find the synth parameter this control controls
-    (let [control-name (:name control)
-          _                (update-ui-state {control-name new-val})
-          synth-ctl-vals   ((:synth-fn control) new-val)
-          _            (doall (map (fn [synth-ctl-val]
-                           (let [synths       ((first synth-ctl-val))
-                                 synth-ctl    (second synth-ctl-val)
-                                 synth-val    (last synth-ctl-val)]
-                               (ctl synths synth-ctl synth-val))) synth-ctl-vals))]))
+  [control new-val]
+  ;; find the synth parameter this control controls
+  (let [control-name (:name control)
+        _                (update-ui-state {control-name new-val})
+        synth-ctl-vals   ((:synth-fn control) new-val)
+        _            (doall (map (fn [synth-ctl-val]
+                                   (let [synths       ((first synth-ctl-val))
+                                         synth-ctl    (second synth-ctl-val)
+                                         synth-val    (last synth-ctl-val)]
+                                     (ctl synths synth-ctl synth-val))) synth-ctl-vals))]))
 
 (def sub-osc-waveforms [:sub-osc-square :sub-osc-sin])
 (defn next-sub-osc-waveform [w]
@@ -296,16 +297,16 @@
 ;; Find a synth and turn it on. Turn off an old synth if we need to free one up.
 (defn keydown [note velocity]
   (dosync
-    (let [voices (if (< note @split-note) voices-a voices-b)]
-      (if-not (some #(= (:note %) note) @voices)
-        (let [synth (getsynth note voices)]
-          (debug "playing " note  " with synth " (:id synth))
-          ;; turn off the old note. Maybe this is a reused synth
-          (ctl synth :gate 0.0)
-          ;; turn on the new note
-          (ctl synth :note note)
-          (ctl synth :velocity velocity)
-          (ctl synth :gate 1.0))))))
+   (let [voices (if (< note @split-note) voices-a voices-b)]
+     (if-not (some #(= (:note %) note) @voices)
+       (let [synth (getsynth note voices)]
+         (debug "playing " note  " with synth " (:id synth))
+         ;; turn off the old note. Maybe this is a reused synth
+         (ctl synth :gate 0.0)
+         ;; turn on the new note
+         (ctl synth :note note)
+         (ctl synth :velocity velocity)
+         (ctl synth :gate 1.0))))))
 
 ;; Find a synth to turn off
 (defn keyup [note]
@@ -328,15 +329,15 @@
   (if (nil? @selected-control)
     ;; lookup a control matching the device, channel, note, and cmd
     (if-let [matched-control (@dev-chan-note-cmd->control
-                               {:device-name device-name
-                                :chan        chan
-                                :note        note
-                                :cmd         cmd})]
+                              {:device-name device-name
+                               :chan        chan
+                               :note        note
+                               :cmd         cmd})]
       (update-control matched-control vel))
     (do
       (debug "assigning assoc "
-               {:device-name device-name :chan chan :note note :cmd cmd}
-               @selected-control)
+             {:device-name device-name :chan chan :note note :cmd cmd}
+             @selected-control)
       ;; make the association between the midi event and the synth control
       (swap! dev-chan-note-cmd->control
              assoc
@@ -566,7 +567,7 @@
   (fn builder
     ([caption] (builder caption {}))
     ([caption m]
-       (merge default {:caption caption} m))))
+     (merge default {:caption caption} m))))
 
 (def mk-pos-only-knob
   "Returns a ui-hints map which is a merger between m and the default
@@ -599,32 +600,32 @@
    (Control.         479 102 :knob (mk-plus-minus-knob "ENV Amt")     synth-voices :tri-fold-env      (fn [val] (- (/ val 64.0) 1.0)))
    ;; sub-octave osc waveform selector
    (AdvancedControl. 290 46  :selector {:caption "WAVE"
-                                         :ui-aux-fn (fn [] (shape (state :square-shape) 310 51)
-                                                           (shape (state :sin-shape)    310 65))}
+                                        :ui-aux-fn (fn [] (shape (state :square-shape) 310 51)
+                                                     (shape (state :sin-shape)    310 65))}
                      :sub-osc-waveform
                      (fn [val] (let [old-waveform (:sub-osc-waveform @synth-state)
-                                    new-state     (alter-state
+                                     new-state     (alter-state
                                                     #(assoc % :sub-osc-waveform
                                                             (if (zero? val)
                                                               ;; button press; switch to next waveform
                                                               (next-sub-osc-waveform (:sub-osc-waveform %))
                                                               ;; knob or slider; calculate waveform
                                                               (sub-osc-waveforms (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
-                                    new-waveform  (:sub-osc-waveform new-state)
-                                    _             (update-ui-state {:sub-osc-waveform (case new-waveform
-                                                                                       :sub-osc-square 1
-                                                                                       :sub-osc-sin    127)})]
-                                ;; Toggle sub-osc waveform
-                                [[synth-voices old-waveform 0] [synth-voices new-waveform (:sub-osc-amp @synth-state)]]))
+                                     new-waveform  (:sub-osc-waveform new-state)
+                                     _             (update-ui-state {:sub-osc-waveform (case new-waveform
+                                                                                         :sub-osc-square 1
+                                                                                         :sub-osc-sin    127)})]
+                                 ;; Toggle sub-osc waveform
+                                 [[synth-voices old-waveform 0] [synth-voices new-waveform (:sub-osc-amp @synth-state)]]))
                      (fn [val] (case (:sub-osc-waveform @synth-state)
-                                :sub-osc-square 0 :sub-osc-sin 16 -10)))
+                                 :sub-osc-square 0 :sub-osc-sin 16 -10)))
    ;; sub-osc octave selector
    (AdvancedControl. 290 106 :selector {:caption "OCTAVE"
                                         :ui-aux-fn (fn [] (text "-1" 315 119)
-                                                          (text "-2" 315 135))}
+                                                     (text "-2" 315 135))}
                      :sub-osc-oct
                      (fn [val] (let [old-oct  (:sub-osc-oct @synth-state)
-                                    new-state (alter-state
+                                     new-state (alter-state
                                                 #(assoc % :sub-osc-oct
                                                         (if (zero? val)
                                                           ;; button press; switch to next oct
@@ -633,16 +634,16 @@
                                                             2 1)
                                                           ;; knob or slider; calculate waveform
                                                           ([1 2] (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
-                                    new-oct   (:sub-osc-oct new-state)
-                                    _         (update-ui-state {:sub-osc-oct (case new-oct
-                                                                              1 1
-                                                                              2 127)})]
-                                ;; Toggle sub-osc octave
-                                [[synth-voices :sub-osc-coeff (case (:sub-osc-oct @synth-state)
-                                                                    1 0.5
-                                                                    2 0.25)]]))
+                                     new-oct   (:sub-osc-oct new-state)
+                                     _         (update-ui-state {:sub-osc-oct (case new-oct
+                                                                                1 1
+                                                                                2 127)})]
+                                 ;; Toggle sub-osc octave
+                                 [[synth-voices :sub-osc-coeff (case (:sub-osc-oct @synth-state)
+                                                                 1 0.5
+                                                                 2 0.25)]]))
                      (fn [val] (case (:sub-osc-oct @synth-state)
-                                1 0 2 16)))])
+                                 1 0 2 16)))])
 
 
 (defn filter-controls []
@@ -653,42 +654,42 @@
                                                                        :end-sym "200%"
                                                                        :sym-dx 3
                                                                        :sym-dy -5})
-                                                                      synth-voices :cutoff-tracking (fn [val] (/ val 64.0)))
+                     synth-voices :cutoff-tracking (fn [val] (/ val 64.0)))
    ;; Filter type knob
    (AdvancedControl. 670 35  :knob {:caption   "Mode"
                                     :ui-aux-fn #(do
                                                   (text-align :left)
                                                   (doall
-                                                    (map-indexed
-                                                      (fn [i e] (apply text e (selector-knob-label-pos 670 38 i)))
-                                                      ["LP" "BP" "HP" "Notch"]))
+                                                   (map-indexed
+                                                    (fn [i e] (apply text e (selector-knob-label-pos 670 38 i)))
+                                                    ["LP" "BP" "HP" "Notch"]))
                                                   (text-align :center))}
                      :filter-type
                      (fn [val] (let [old-mode (:filter-type @synth-state)
-                                    new-state (alter-state
-                                                  #(assoc % :filter-type
-                                                          (if (zero? val)
-                                                            ;; button press; switch to next mode
-                                                            (next-filter-type (:filter-type %))
-                                                            ;; knob or slider; calculate mode
-                                                            (filter-types (int (* (/ val 128.0) (count filter-types)))))))
-                                    new-mode  (:filter-type new-state)
-                                    _         (update-ui-state {:filter-type (case new-mode
-                                                                              :low-pass  1
-                                                                              :band-pass 33
-                                                                              :high-pass 65
-                                                                              :notch     127)})]
-                                ;; Toggle filter mode
-                                [[synth-voices :filter-type (.indexOf filter-types new-mode)]]))
+                                     new-state (alter-state
+                                                #(assoc % :filter-type
+                                                        (if (zero? val)
+                                                          ;; button press; switch to next mode
+                                                          (next-filter-type (:filter-type %))
+                                                          ;; knob or slider; calculate mode
+                                                          (filter-types (int (* (/ val 128.0) (count filter-types)))))))
+                                     new-mode  (:filter-type new-state)
+                                     _         (update-ui-state {:filter-type (case new-mode
+                                                                                :low-pass  1
+                                                                                :band-pass 33
+                                                                                :high-pass 65
+                                                                                :notch     127)})]
+                                 ;; Toggle filter mode
+                                 [[synth-voices :filter-type (.indexOf filter-types new-mode)]]))
                      (fn [val] (case (:filter-type @synth-state)
-                                :low-pass 60 :band-pass 72 :high-pass 83 :notch 96)))
+                                 :low-pass 60 :band-pass 72 :high-pass 83 :notch 96)))
    ;; envelope speed selector
    (AdvancedControl. 690 103 :selector {:caption   "ENV Speed"
                                         :ui-aux-fn (fn [] (text "Fast" 716 114)
-                                                          (text "Slow" 716 130))}
+                                                     (text "Slow" 716 130))}
                      :env-speed
                      (fn [val] (let [old-speed (:env-speed @synth-state)
-                                    new-state  (alter-state
+                                     new-state  (alter-state
                                                  #(assoc % :env-speed
                                                          (if (zero? val)
                                                            ;; button press; switch to next sped
@@ -697,16 +698,16 @@
                                                              :slow :fast)
                                                            ;; knob or slider; calculate speed
                                                            ([:fast :slow] (int (constrain (* 2.0 (/ val 127.0)) 0 1))))))
-                                    new-speed  (:env-speed new-state)
-                                    _          (update-ui-state {:env-speed (case new-speed
-                                                                             :fast 1
-                                                                             :slow 127)})]
-                                ;; Toggle env-speed
-                                [[synth-voices :env-speed (case (:env-speed @synth-state)
-                                                            :fast 1
-                                                            :slow 10)]]))
+                                     new-speed  (:env-speed new-state)
+                                     _          (update-ui-state {:env-speed (case new-speed
+                                                                               :fast 1
+                                                                               :slow 127)})]
+                                 ;; Toggle env-speed
+                                 [[synth-voices :env-speed (case (:env-speed @synth-state)
+                                                             :fast 1
+                                                             :slow 10)]]))
                      (fn [val] (case (:env-speed @synth-state)
-                                :fast 0 :slow 16)))])
+                                 :fast 0 :slow 16)))])
 
 (defn osc-mix-controls []
   [(Control.         320 265 :slider {} synth-voices :osc-saw     (fn [val] (/ val 127.0)))
@@ -717,7 +718,7 @@
    ;; Sub-octave amount
    (AdvancedControl. 280 265 :slider {} :sub-osc-amp
                      (fn [val] (let [new-state (alter-state #(assoc % :sub-osc-amp (/ val 127.0)))]
-                                [[synth-voices (:sub-osc-waveform @synth-state) (/ val 127.0)]]))
+                                 [[synth-voices (:sub-osc-waveform @synth-state) (/ val 127.0)]]))
                      (fn [val] (* 127.0 (:sub-osc-amp @synth-state))))])
 
 (defn filter-asdr-controls []
@@ -969,7 +970,7 @@
    (Control. 750 38 :knob (mk-pos-only-knob "Feedback Amt")  synth-voices :feedback-amp (fn [val] (/ val 120.0)))])
 
 (defn wheel-controls []
-   ;; Ptch bend wheel
+  ;; Ptch bend wheel
   [(AdvancedControl. 100 165 :wheel {:caption "Pitch"} :pitch-wheel
                      ;; bend fn val:127->1.0 val:64->0.0 val:0->-1.0
                      (fn [val] [[synth-voices :bend (- (* 2.0 (/ val 127.0)) 1.0)]])
@@ -977,18 +978,18 @@
    ;; Mod-wheel
    (AdvancedControl. 170 165 :wheel {:caption "Modulation"} :mod-wheel
                      (fn [val] (alter-state #(assoc % :mod-wheel-pos val))
-                               (case (:mod-wheel-fn @synth-state)
-                                :cutoff       [[synth-voices :cutoff (* (- val 10) 100.0)]]
-                                :vibrato (case (:vibrato-fn @synth-state)
-                                           :vibrato    [[synth-voices :vibrato-amp (/ val 127.0)]
-                                                        [synth-voices :vibrato-trill 0]]
-                                           :trill-up   [[synth-voices :vibrato-amp 0.0]
-                                                        [synth-voices :vibrato-trill (int (/ val 10))]]
-                                           :trill-down [[synth-voices :vibrato-amp 0.0]
-                                                        [synth-voices :vibrato-trill (- (int (/ val 10)))]])
-                                :lfo-amount (do
-                                              (alter-state #(assoc % :lfo-amp (/ val 127.0)))
-                                              [[lfo-synth (:lfo-waveform @synth-state) (/ val 127.0)]])))
+                       (case (:mod-wheel-fn @synth-state)
+                         :cutoff       [[synth-voices :cutoff (* (- val 10) 100.0)]]
+                         :vibrato (case (:vibrato-fn @synth-state)
+                                    :vibrato    [[synth-voices :vibrato-amp (/ val 127.0)]
+                                                 [synth-voices :vibrato-trill 0]]
+                                    :trill-up   [[synth-voices :vibrato-amp 0.0]
+                                                 [synth-voices :vibrato-trill (int (/ val 10))]]
+                                    :trill-down [[synth-voices :vibrato-amp 0.0]
+                                                 [synth-voices :vibrato-trill (- (int (/ val 10)))]])
+                         :lfo-amount (do
+                                       (alter-state #(assoc % :lfo-amp (/ val 127.0)))
+                                       [[lfo-synth (:lfo-waveform @synth-state) (/ val 127.0)]])))
                      (fn [val] val))])
 
 (defn mod-controls []
@@ -1556,7 +1557,7 @@
 
 (defn -main [& args]
   (start!)
-  (banner "! ~ ~ ·Let· ·The· ·mBeast· ·Go· ~ ~ !"))
+  (banner "···Overtone···MINIBEAST···"))
 
 (comment
   (start!)
