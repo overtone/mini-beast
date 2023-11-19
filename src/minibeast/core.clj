@@ -57,14 +57,21 @@
               errors)
       (println)
       (banner "The  MiniBeast")
+      (println)
       (println "mini-beast [options] [patch-a] [patch-b]")
       (println)
       (println summary)
       (System/exit (if errors 1 0)))
     (let [[a b] arguments]
-      (def patch-a (or a (io/file preset-dir "way-huge.patch")))
-      (def patch-b (or b (io/file preset-dir "bass.patch"))))
-    (reset! verbosity (:verbose options))
+      (def patch-a (or (and a (.exists (io/file a)) a)
+                       (and a (.exists (io/file preset-dir a)) (io/file preset-dir a))
+                       (and a (io/resource a))
+                       (io/file preset-dir "way-huge.patch")))
+      (def patch-b (or (and b (.exists (io/file b)) b)
+                       (and b (.exists (io/file preset-dir b)) (io/file preset-dir b))
+                       (and b (io/resource b))
+                       (io/file preset-dir "bass.patch"))))
+    (reset! verbosity (:verbosity options))
     (cond
       (:sc-boot-external options)
       (boot-external-server)
@@ -1130,7 +1137,9 @@
         (->> out-obj pr-str (spit path))))))
 
 (defn load-synth-settings-from-file [path]
+  (debug "Loading" (str path))
   (let [patch (-> path slurp read-string)]
+    (debug "--> patch" patch)
     ;; reset the ui and synth to pre-file-loaded values
     (swap! ui-state merge {@selected-split {}})
     (reset-synth-defaults mbsynth)
@@ -1184,9 +1193,11 @@
   presets found on the classpath."
   []
   (when (not (.isDirectory preset-dir))
-    (.mkdir preset-dir)
-    (doseq [p presets]
-      (spit (io/file preset-dir p) (slurp (io/resource (str "presets/" p)))))))
+    (.mkdir preset-dir))
+  (doseq [p presets
+          :let [f (io/file preset-dir p)]]
+    (when-not (.exists f)
+      (spit f (slurp (io/resource p))))))
 
 (defn setup []
   (smooth)
