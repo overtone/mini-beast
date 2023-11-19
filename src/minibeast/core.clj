@@ -1176,7 +1176,9 @@
     "Open Patch"    (apply-synth-settings-from-file)))
 
 (defn load-image [fname]
-  (PImageAWT. (ImageIO/read (io/resource fname))))
+  (if (instance? java.io.File fname)
+    (q/load-image fname)
+    (PImageAWT. (ImageIO/read (io/resource fname)))))
 
 (def presets
   ["way-huge.patch"
@@ -1251,7 +1253,7 @@
     (if @first-draw?
       (let [draw-foreground? false
             draw-background? true
-            tmp-background   "tmp-background.png"]
+            tmp-background   (java.io.File/createTempFile "tmp-background" ".png")]
         (reset! first-draw? false)
         (debug "--> Compositing background...")
         (set-image 0 0 background-img)
@@ -1269,7 +1271,7 @@
                                   {:x 174 :y 360 :t "+1"}
                                   {:x 194 :y 360 :t "+2"}]]
           (text t x y))
-        (save (str "data/" tmp-background))
+        (save tmp-background)
         (debug "--> Loading new background...")
         (reset! composite-background-img (load-image tmp-background))))
 
@@ -1554,10 +1556,10 @@
 
 (defn -main [& args]
   (start!)
-  (banner "The MiniBeast is a go"))
+  (banner "! ~ ~ ·Let· ·The· ·mBeast· ·Go· ~ ~ !"))
 
 (comment
-  (-main)
+  (start!)
 
   (:state (meta sk))
 
