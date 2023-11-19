@@ -7,9 +7,41 @@ Digital clone of an analog synthesizer using Overtone and Quil
 
 ## Prerequisites
 
-Install the [Clojure CLI tools](https://clojure.org/guides/install_clojure)
+- You need a reasonably recent Java installation, MiniBeast has been tested with OpenJDK 17 (Termurin)
+- On some platforms you will have to [install SuperCollider](https://supercollider.github.io/downloads.html). We generally recommend you do this if you have any trouble running MiniBeast. Overtone/MiniBeast can run with its own embedded SuperCollider, but it frequently causes issues.
+- To run from source you need the Clojure CLI tools
 
-## Running
+## Running from JAR
+
+Download the latest `.jar` file from the Github [Releases](https://github.com/overtone/mini-beast/releases) page.
+
+Invocations:
+
+```shell
+java -jar minibeast-<version>.jar
+java -jar minibeast-<version>.jar --help
+java -jar minibeast-<version>.jar --sc-boot-external
+
+scsynth -u 12345
+java -jar minibeast-<version>.jar --sc-udp-port 12345
+```
+
+Help:
+
+```
+     -·~=:#{[   ···Overtone···MINIBEAST···   ]}#:=~·-
+
+minibeast [options] [patch-a] [patch-b]
+
+  -x, --sc-boot-external     Boot a separate SuperCollider server process, instead of starting an embedded server.
+  -u, --sc-udp-port PORT     Connect to an external SuperCollider server over UDP at the given port, instead of starting an embedded server.
+  -v, --verbose           0  Verbosity level
+  -h, --help
+```
+
+## Running from source
+
+You need the [Clojure CLI tools](https://clojure.org/guides/install_clojure) for this. You may also have to.
 
 ```
 git clone https://github.com/overtone/mini-beast.git
@@ -17,9 +49,7 @@ cd mini-beast
 clojure -M -m minibeast.core
 ```
 
-This will try to use the Overtone internal (embedded) SuperCollider. There are
-several scenarios in which this may not work (Mac M1/M2, Windows 64 bit, Linux
-with Pipewire). Check the [[Troubleshooting]] section below for how to fix that.
+The above advice about running an external SuperCollider still applies, you can use the same CLI flags (`--sc-boot-external`, `--sc-udp-port`).
 
 ## Tips
 
@@ -29,6 +59,12 @@ with Pipewire). Check the [[Troubleshooting]] section below for how to fix that.
 * You can save and load bindings and presets using the `File` menu.
 
 ## Troubleshooting
+
+### It runs but there's no sound
+
+Check that your outputs are connected. On Linux this is done by connecting
+Overtone to your audio interface through Jack or PipeWire. Programs that can do
+this are `qjackctl` (Jack or Pipewire) or `qpwgraph` (Pipewire only).
 
 ### Can't start SuperCollider
 
@@ -52,14 +88,16 @@ of the `pipewire-jack` package.
 
 ```
 scsynth -u 12345
-pw-jack clojure -M -m minibeast-core --sc-udp-port 12345
+pw-jack java -jar minibeast.jar --sc-udp-port 12345
 ```
 
-### It runs but there's no sound
+## Building
 
-Check that your outputs are connected. On Linux this is done by connecting
-Overtone to your audio interface through Jack or PipeWire. Programs that can do
-this are `qjackctl` (Jack or Pipewire) or `qpwgraph` (Pipewire only).
+To build the jar:
+
+```
+clojure -X:uberjar :jar minibeast-0.0.0.jar
+```
 
 ## A call for patches
 

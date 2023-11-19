@@ -7,4 +7,11 @@
                                            #_#_:local/root "../overtone"}
   quil/quil                               {:mvn/version "4.3.1323"}
   commons-collections/commons-collections {:mvn/version "20040616"}
-  org.clojure/tools.cli                   {:mvn/version "1.0.219"}}}
+  org.clojure/tools.cli                   {:mvn/version "1.0.219"}}
+
+ :aliases
+ {:uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
+            :exec-fn hf.depstar/uberjar
+            :exec-args {:aot false
+                        :main-class minibeast.main
+                        :compile-ns [minibeast.main]}}}}
