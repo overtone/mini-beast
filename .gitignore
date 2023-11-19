@@ -7,3 +7,9 @@ pom.xml
 /data/*jpg
 target
 .DS_store
+native
+.cpcache
+hs_err*.log
+tmp_background.png
+tmp-background.png
+.nrepl-port

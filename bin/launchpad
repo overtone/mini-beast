@@ -1,0 +1,4 @@
+#!/usr/bin/env -S pw-jack bb
+(require '[lambdaisland.launchpad :as launchpad])
+
+(launchpad/main {})
