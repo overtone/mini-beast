@@ -6,6 +6,7 @@
    [quil.core :as q
     :exclude [abs acos asin atan atan2 ceil cos
               exp line log
+              tint
               ;;  mouse-button mouse-x mouse-y
               pow round scale sin sqrt tan triangle
               TWO-PI floor clear clip load-image debug fill rotate
@@ -25,11 +26,14 @@
    [clojure.java.io :as io]
    [clojure.tools.cli :as cli]))
 
-(binding [*out* (java.io.StringWriter.)
-          *err* (java.io.StringWriter.)]
-  (load "/overtone/api"))
-((resolve 'overtone.api/immigrate-overtone-api))
+(defonce verbosity (atom 0))
 
+(defonce __load_overtone
+  (do
+    (binding [*out* (java.io.StringWriter.)
+              *err* (java.io.StringWriter.)]
+      (load "/overtone/api"))
+    ((resolve 'overtone.api/immigrate-overtone-api))))
 
 (def cli-opts
   [["-x" "--sc-boot-external" "Boot a separate SuperCollider server process, instead of starting an embedded server."]
@@ -41,26 +45,33 @@
     :update-fn inc]
    ["-h" "--help"]])
 
+(def preset-dir (io/file (System/getProperty "user.dir") "presets"))
+
 (defn banner [& args]
   (println "     -~~=::[  " (str/join " " args) "  ]::=~~-"))
 
-(let [{:keys [options arguments summary errors]}
-      (cli/parse-opts *command-line-args* cli-opts)]
-  (when (or (:help options)
-            (seq arguments)
-            errors)
-    (println)
-    (banner "The  MiniBeast")
-    (println)
-    (println summary)
-    (System/exit (if errors 1 0)))
-  (cond
-    (:sc-boot-external options)
-    (boot-external-server)
-    (:sc-udp-port options)
-    (connect-external-server (:sc-udp-port options))
-    :else
-    (boot-internal-server)))
+(defonce __handle-cli-args
+  (let [{:keys [options arguments summary errors]}
+        (cli/parse-opts *command-line-args* cli-opts)]
+    (when (or (:help options)
+              errors)
+      (println)
+      (banner "The  MiniBeast")
+      (println "mini-beast [options] [patch-a] [patch-b]")
+      (println)
+      (println summary)
+      (System/exit (if errors 1 0)))
+    (let [[a b] arguments]
+      (def patch-a (or a (io/file preset-dir "way-huge.patch")))
+      (def patch-b (or b (io/file preset-dir "bass.patch"))))
+    (reset! verbosity (:verbose options))
+    (cond
+      (:sc-boot-external options)
+      (boot-external-server)
+      (:sc-udp-port options)
+      (connect-external-server (:sc-udp-port options))
+      :else
+      (boot-internal-server))))
 
 ;; We have to boot overtone before we can start defines synths
 (use '[minibeast.mbsynth])
@@ -184,7 +195,6 @@
 (def voices-max 4)
 (defonce voices-a (ref ()))
 (defonce voices-b (ref ()))
-(defonce verbosity (atom 0))
 
 (defn debug [& args]
   (when (< 0 @verbosity)
@@ -351,18 +361,35 @@
   "Performs the bindings then performs do-transformation on the body"
   [bindings & body]
   `(let* ~(destructure bindings)
-         (do-transformation ~@body)))
+     (do-transformation ~@body)))
 
 (def selected-tint [255 100 100])
+(def white-tint    [255 255])
+(def overtone-tint [255 0 147])
+
+;; Can be removed when https://github.com/quil/quil/pull/397 is released
+(defn tint
+  ([gray] (q/tint gray))
+  ([gray alpha] (q/tint gray alpha))
+  ([r g b] (q/tint r g b))
+  ([r g b a] (.tint (q/current-graphics) (float r) (float g) (float b) (float a))))
+
+;; Tint stack, so we can actually scope it. Quil doesn't give us a way to read the tint.
+(def ^:dynamic *current-tint* white-tint)
+
+(defmacro with-tint [new-tint & body]
+  `(let [new-tint# ~new-tint]
+     (binding [*current-tint* new-tint#]
+       (apply tint new-tint#)
+       ~@body)
+     (apply tint *current-tint*)))
 
 (defn draw-key [x y key-color selected?]
-  (if selected?
-    (apply tint selected-tint)
-    (tint 255 255))
-  (image (case key-color
-           :white (state :white-key-img)
-           :black (state :black-key-img))
-         x y))
+  (with-tint (if selected? selected-tint white-tint)
+    (image (case key-color
+             :white (state :white-key-img)
+             :black (state :black-key-img))
+           x y)))
 
 (defn draw-knob [x y amount selected? draw-foreground? draw-background?
                  pos-indicator? start-sym end-sym sym-dx sym-dy zero?
@@ -395,11 +422,8 @@
     (when draw-foreground?
       (q/rotate (- (* amount 0.038) 2.4))
       (translate (- w2) (- w2))
-      (if selected?
-        (apply tint selected-tint)
-        (tint 255 255))
-      (image knob-img 0 0)
-      (tint 255 255))))
+      (with-tint (if selected? selected-tint white-tint)
+        (image knob-img 0 0)))))
 
 (defn draw-button [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   "x: x position
@@ -414,10 +438,8 @@
           (text-align :center)
           (text caption (+ 22 cdx x) (+ cdy y 46)))))
     (when draw-foreground?
-      (when selected?
-        (apply tint selected-tint))
-      (image button-img x y)
-      (tint 255 255))))
+      (with-tint (if selected? selected-tint white-tint)
+        (image button-img x y)))))
 
 (defn draw-small-button [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   "x: x position
@@ -432,15 +454,14 @@
           (text-align :center)
           (text caption (+ 22 cdx x) (+ cdy y 30)))))
     (when draw-foreground?
-      (when selected?
-        (apply tint selected-tint))
-      (image button-img x y)
-      (tint 255 255))))
+      (with-tint (if selected? selected-tint white-tint)
+        (image button-img x y)))))
 
-(defn draw-slider [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
+(defn draw-slider
   "x: x position
-     y: y position
-     amount: 0.0-127.0"
+  y: y position
+  amount: 0.0-127.0"
+  [x y amount selected? draw-foreground? draw-background? caption caption-dx caption-dy]
   (let [slider-background-img (state :slider-background-img)
         slider-img            (state :slider-img)]
     (when draw-background?
@@ -452,16 +473,15 @@
           (text-align :center)
           (text caption (+ 16 cdx x) (+ cdy y 40)))))
     (when draw-foreground?
-      (when selected?
-        (apply tint selected-tint))
-      (image slider-img x (+ y (* -0.6  amount)))
-      (tint 255 255))))
+      (with-tint (if selected? selected-tint white-tint)
+        (image slider-img x (+ y (* -0.6  amount)))))))
 
-(defn draw-selector [x y pos selected? draw-foreground? draw-background?
-                     caption caption-dx caption-dy]
+(defn draw-selector
   "x: x position
-     y: y position
-     pos: y position offet"
+   y: y position
+   pos: y position offet"
+  [x y pos selected? draw-foreground? draw-background?
+   caption caption-dx caption-dy]
   (let [selector-background-img (state :selector-background-img)
         selector-img            (state :selector-img) ]
     (when draw-background?
@@ -473,16 +493,15 @@
           (text-align :center)
           (text caption (+ 10 cdx x) (+ y cdy 44)))))
     (when draw-foreground?
-      (when selected?
-        (apply tint selected-tint))
-      (image selector-img x (+ y pos))
-      (tint 255 255))))
+      (with-tint (if selected? selected-tint white-tint)
+        (image selector-img x (+ y pos))))))
 
-(defn draw-wheel [x y amount selected? _ _ caption caption-dx caption-dy]
+(defn draw-wheel
   "x: x position on screen
    y: y position on screen
    amount: 0.0-127.0
    selected?: draw control in selected mode"
+  [x y amount selected? _ _ caption caption-dx caption-dy]
   (let [wheel-dimple-background-img (state :wheel-dimple-background-img)
         wheel-img                   (state :wheel-img)
         wheel-dimple-img            (state :wheel-dimple-img)
@@ -505,8 +524,7 @@
         (apply tint (conj tcs t))
         (image wheel-dimple-img dx dy)
         (apply tint (conj tcs (- 255 t)))
-        (image wheel-dimple-inv-img dx dy)
-        (tint 255 255 255 255)))))
+        (image wheel-dimple-inv-img dx dy)))))
 
 (defn draw-control [control draw-foreground? draw-background?]
   (let [selected? (= (:name @selected-control) (:name control))
@@ -515,14 +533,14 @@
         ui-hints  (:ui-hints control)]
     (case (:type control)
       :knob         (apply draw-knob           (apply conj args
-                                                           ((juxt :pos-indicator? :start-sym :end-sym :sym-dx :sym-dy
-                                                                  :zero? :caption :caption-dx :caption-dy) ui-hints)))
+                                                      ((juxt :pos-indicator? :start-sym :end-sym :sym-dx :sym-dy
+                                                             :zero? :caption :caption-dx :caption-dy) ui-hints)))
       :button       (apply draw-button         (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
       :small-button (apply draw-small-button   (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
       :slider       (apply draw-slider         (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
       :selector     (apply draw-selector       (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints)))
       :wheel        (apply draw-wheel          (apply conj args ((juxt :caption :caption-dx :caption-dy) ui-hints))))
-    (when-let [ui-aux-fn (-> control :ui-hints :ui-aux-fn )]
+    (when-let [ui-aux-fn (-> control :ui-hints :ui-aux-fn)]
       (ui-aux-fn))))
 
 (defn control->advanced-control [control]
@@ -1002,7 +1020,7 @@
                                                  (text-size 16)
                                                  (text (name (find-note-name (note @split-note))) 199 676)
                                                  (text-size 8)
-                                                 (q/fill (color 255 255 255 255)))}
+                                                 (q/fill 255 255 255 255))}
                      :split-note
                      (fn [val] (do
                                  (reset! split-note (int val))
@@ -1151,14 +1169,34 @@
 (defn load-image [fname]
   (PImageAWT. (ImageIO/read (io/resource fname))))
 
+(def presets
+  ["way-huge.patch"
+   "arppy.patch"
+   "distorted.patch"
+   "bass.patch"
+   "pluck.patch"
+   "tri-melody.patch"
+   "horn.patch"
+   "pipes.patch"])
+
+(defn unpack-presets!
+  "Create a presets directory in the current working directory, and fill it with
+  presets found on the classpath."
+  []
+  (when (not (.isDirectory preset-dir))
+    (.mkdir preset-dir)
+    (doseq [p presets]
+      (spit (io/file preset-dir p) (slurp (io/resource (str "presets/" p)))))))
+
 (defn setup []
   (smooth)
   (frame-rate 10)
   (background 0)
   ;; load the most bad-est preset possible!
-  (load-synth-settings-from-file "./presets/way-huge.patch")
+  (unpack-presets!)
+  (load-synth-settings-from-file patch-a)
   (reset! selected-split :b)
-  (load-synth-settings-from-file "./presets/bass.patch")
+  (load-synth-settings-from-file patch-b)
   (reset! selected-split :a)
   (set-state! :background-img              (load-image "background.png")
               :mod-panel-img               (load-image "mod-panel.png")
@@ -1198,8 +1236,7 @@
         overtone-circle-img (state :overtone-circle-img)
         overtone-text-img   (state :overtone-text-img)
         mini-beast-text-img (state :mini-beast-text-img)
-        logo-img            (state :logo-img)
-        overtone-tint       (color 253 0 147)]
+        logo-img            (state :logo-img)]
     (if @first-draw?
       (let [draw-foreground? false
             draw-background? true
@@ -1207,12 +1244,12 @@
         (reset! first-draw? false)
         (debug "--> Compositing background...")
         (set-image 0 0 background-img)
-        (tint overtone-tint)
-        (image overtone-circle-img 65 20)
-        (tint 255 255)
-        (image overtone-text-img 65 20)
-        (image mini-beast-text-img 125 50)
-        (image logo-img 120 80)
+        (with-tint overtone-tint
+          (image overtone-circle-img 65 20))
+        (with-tint white-tint
+          (image overtone-text-img 65 20)
+          (image mini-beast-text-img 125 50)
+          (image logo-img 120 80))
         (doall (map #(draw-control % draw-foreground? draw-background?) (get-controls false)))
         (q/fill 255)
         (doseq [{:keys [t x y]}  [{:x 114 :y 360 :t "-2"}
@@ -1223,8 +1260,7 @@
           (text t x y))
         (save (str "data/" tmp-background))
         (debug "--> Loading new background...")
-        (reset! composite-background-img (load-image tmp-background))
-        ))
+        (reset! composite-background-img (load-image tmp-background))))
 
     (set-image 0 0 @composite-background-img)
     ;; draw all keys
@@ -1237,7 +1273,6 @@
     ;; draw modulation panel
     (when @show-modulation-controls?
       ;; draw background
-      (tint 255 255)
       (image (state :mod-panel-img) 50 472)
       (doseq [ctl (get-mod-controls)]
         (draw-control ctl true true)))
@@ -1249,23 +1284,23 @@
         (draw-control ctl draw-foreground? draw-background?)))
 
     (let [lfo              (or @(-> (lfo-synth) :taps :lfo) 0)
-          lfo-tint         (color 255 0 0 (* 255 lfo))
+          lfo-tint         [255 0 0 (* 255 lfo)]
           amp              (apply max 0 (map (fn [s] @(-> s :taps :amp-adsr)) (concat synth-voices-a synth-voices-b)))
-          amp-tint         (color 0 255 0 (* 255 amp))
+          amp-tint         [0 255 0 (* 255 amp)]
           fil              (apply max 0 (map (fn [s] @(-> s :taps :filter-adsr)) (concat synth-voices-a synth-voices-b)))
-          filter-tint      (color 0 255 0 (* 255 fil))
+          filter-tint      [0 255 0 (* 255 fil)]
           arp              (or @(-> (arp-synth) :taps :arp) 0)
-          arp-tint         (color 255 0 0 (* 255 arp))
-          off-tint         (color 65 65 65 255)
-          down-2-oct-tint  (color 255 0   0 (if (= -2 (:octave-transpose @synth-state)) 255 66))
-          down-1-oct-tint  (color 255 255 0 (if (= -1 (:octave-transpose @synth-state)) 255 66))
-          down-0-oct-tint  (color 0   255 0 (if (=  0 (:octave-transpose @synth-state)) 255 66))
-          up-1-oct-tint    (color 255 255 0 (if (=  1 (:octave-transpose @synth-state)) 255 66))
-          up-2-oct-tint    (color 255 0   0 (if (=  2 (:octave-transpose @synth-state)) 255 66))
+          arp-tint         [255 0 0 (* 255 arp)]
+          off-tint         [65 65 65 255]
+          down-2-oct-tint  [255 0   0 (if (= -2 (:octave-transpose @synth-state)) 255 66)]
+          down-1-oct-tint  [255 255 0 (if (= -1 (:octave-transpose @synth-state)) 255 66)]
+          down-0-oct-tint  [0   255 0 (if (=  0 (:octave-transpose @synth-state)) 255 66)]
+          up-1-oct-tint    [255 255 0 (if (=  1 (:octave-transpose @synth-state)) 255 66)]
+          up-2-oct-tint    [255 0   0 (if (=  2 (:octave-transpose @synth-state)) 255 66)]
           draw-led    (fn [x y t]
-                        (tint off-tint)
+                        (apply tint off-tint)
                         (image led-background-img (+ 10 x) (+ 10 y))
-                        (tint t)
+                        (apply tint t)
                         (image led-img x y))]
 
       (doseq [[x y led] [[590 388 lfo-tint]
@@ -1277,9 +1312,7 @@
                          [142 354 down-0-oct-tint]
                          [162 354 up-1-oct-tint]
                          [182 354 up-2-oct-tint]]]
-        (draw-led x y led))
-
-      )))
+        (draw-led x y led)))))
 
 (defn in-box?
   "is point [x y] inside the box bounded by [u v] [s t]?
@@ -1504,9 +1537,12 @@
           (catch Exception e
             false)))))
 
-(defn -main [& args]
+(defn start! []
   (register-midi-handlers)
-  (start-gui)
+  (start-gui))
+
+(defn -main [& args]
+  (start!)
   (banner "The MiniBeast is a go"))
 
 (comment
@@ -1514,4 +1550,6 @@
 
   (:state (meta sk))
 
-  (System/exit 0))
+  (System/exit 0)
+
+  (reset! first-draw? true))
