@@ -91,6 +91,14 @@ scsynth -u 12345
 pw-jack java -jar minibeast.jar --sc-udp-port 12345
 ```
 
+## Building
+
+To build the jar:
+
+```
+clojure -X:uberjar :jar minibeast-0.0.0.jar
+```
+
 ## A call for patches
 
 MiniBeast loads a default patch, but we need your help! There is a world of
